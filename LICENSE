@@ -1,0 +1,92 @@
+CONTRAT DE LICENCE PROPRIÉTAIRE D'UTILISATION ÉDUCATIVE ET NON COMMERCIALE
+================================================================================
+ESP32 MicroPython Lab — Version 2.0
+Copyright (c) 2024–2026 Fares Bel Haj Ali. Tous droits réservés.
+Email : belhadj.fares@gmail.com | Tél : +216 22 392 646
+
+--------------------------------------------------------------------------------
+PRÉAMBULE
+--------------------------------------------------------------------------------
+Le présent Contrat de Licence constitue un accord légal entre vous (ci-après 
+« l'Utilisateur » ou « Vous ») et M. Fares Bel Haj Ali (ci-après « l'Auteur »), 
+seul et unique titulaire des droits de propriété intellectuelle, de conception, 
+d'architecture logicielle et de droits d'auteur sur le logiciel 
+« ESP32 MicroPython Lab » (ci-après « le Logiciel »), comprenant l'ensemble 
+du code source, des binaires, des bibliothèques de composants, des modèles de 
+simulation, de la documentation, des éléments graphiques et des ressources associées.
+
+En téléchargeant, installant, copiant ou utilisant le Logiciel, Vous acceptez 
+d'être lié(e) par les termes et conditions du présent contrat. Si Vous n'acceptez 
+pas ces termes, Vous ne devez ni installer, ni copier, ni utiliser le Logiciel.
+
+--------------------------------------------------------------------------------
+ARTICLE 1. CONCESSION DE LICENCE
+--------------------------------------------------------------------------------
+L'Auteur concède à l'Utilisateur une licence personnelle, non exclusive, non 
+transférable, révocable et gratuite d'utilisation du Logiciel, strictement limitée 
+aux usages suivants :
+1.1. Usage Personnel : Expérimentation, prototypage privé et auto-formation.
+1.2. Usage Éducatif & Pédagogique : Utilisation au sein d'établissements scolaires, 
+     universités, centres de formation professionnelle, fablabs et clubs de 
+     robotique, à des fins d'apprentissage, d'enseignement et de travaux pratiques, 
+     à condition que cette utilisation ne donne lieu à aucune tarification spécifique 
+     ou commercialisation du Logiciel.
+
+--------------------------------------------------------------------------------
+ARTICLE 2. RESTRICTIONS ET INTERDICTIONS FORMELLES
+--------------------------------------------------------------------------------
+Sauf accord écrit, préalable et exprès de l'Auteur, sont strictement interdits :
+2.1. Usage Commercial : Toute exploitation directe ou indirecte du Logiciel à des 
+     fins lucratives ou commerciales, y compris mais sans s'y limiter : la vente, 
+     la revente, la location, le prêt payant, l'intégration dans un progiciel ou 
+     service commercial, ou l'utilisation comme support de prestations payantes.
+2.2. Altération des Mentions Légales : La suppression, la modification, le masquage 
+     ou l'omission des mentions de droits d'auteur (copyright), du nom de l'Auteur 
+     (Fares Bel Haj Ali), des coordonnées de contact ou du présent contrat, que ce 
+     soit dans l'interface graphique (notamment la fenêtre « À propos »), les fichiers 
+     sources, les binaires ou la documentation.
+2.3. Redistribution Non Autorisée : La redistribution ou rediffusion du Logiciel 
+     sous un autre nom, avec altération ou sans inclusion obligatoire de la présente 
+     licence et des crédits d'origine.
+2.4. Rétro-ingénierie : La décompilation, le désassemblage ou toute tentative 
+     d'extraction du code source à des fins de contrefaçon ou de commercialisation 
+     d'un produit dérivé concurrent.
+
+--------------------------------------------------------------------------------
+ARTICLE 3. PROPRIÉTÉ INTELLECTUELLE
+--------------------------------------------------------------------------------
+Le Logiciel est protégé par le Code de la Propriété Intellectuelle et les traités 
+internationaux sur le droit d'auteur. L'Auteur conserve l'intégralité de la 
+propriété, des titres, des droits d'auteur et des droits industriels attachés au 
+Logiciel. Le présent contrat ne constitue en aucun cas une cession de propriété.
+
+--------------------------------------------------------------------------------
+ARTICLE 4. RÉSILIATION
+--------------------------------------------------------------------------------
+Le non-respect de l'une quelconque des clauses du présent contrat entraînera la 
+résiliation immédiate et de plein droit de la présente licence, sans préavis, 
+et pourra donner lieu à des poursuites judiciaires conformément aux lois en vigueur. 
+En cas de résiliation, Vous devez immédiatement cesser toute utilisation du 
+Logiciel et détruire toutes les copies en votre possession.
+
+--------------------------------------------------------------------------------
+ARTICLE 5. EXCLUSION DE GARANTIE ET LIMITATION DE RESPONSABILITÉ
+--------------------------------------------------------------------------------
+LE LOGICIEL EST FOURNI « EN L'ÉTAT » (« AS IS »), SANS AUCUNE GARANTIE EXPRESSE OU 
+IMPLICITE D'AUCUNE SORTE, Y COMPRIS, SANS S'Y LIMITER, LES GARANTIES DE QUALITÉ 
+MARCHANDE OU D'ADÉQUATION À UN USAGE PARTICULIER. EN AUCUN CAS L'AUTEUR NE POURRA 
+ÊTRE TENU RESPONSABLE DES DOMMAGES DIRECTS, INDIRECTS, MATÉRIELS OU IMMATÉRIELS 
+(PERTE DE DONNÉES, DE PROFITS, DÉFAILLANCE MATÉRIELLE OU INTERRUPTION D'ACTIVITÉ) 
+RÉSULTANT DE L'UTILISATION OU DE L'IMPOSSIBILITÉ D'UTILISER LE LOGICIEL.
+
+--------------------------------------------------------------------------------
+ARTICLE 6. CONTACT & AUTORISATIONS COMMERCIALES
+--------------------------------------------------------------------------------
+Pour toute demande de partenariat, de licence commerciale, de déploiement 
+institutionnel spécifique ou d'adaptation sur-mesure, veuillez contacter :
+
+  Fares Bel Haj Ali
+  Développeur & Concepteur Logiciel
+  Email : belhadj.fares@gmail.com
+  Tél   : +216 22 392 646
+================================================================================
