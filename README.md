@@ -45,13 +45,13 @@ Conçu pour les lycées, universités, centres de formation, makers et passionn�
 ## 🚀 Téléchargement & Installation
 
 ### Option 1 : Installateur Windows automatique (Recommandé)
-1. Téléchargez le fichier **[ESP32_MicroPython_Lab_Setup_v2.0.exe](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/download/v2.0/ESP32_MicroPython_Lab_Setup_v2.0.exe)**.
+1. Téléchargez le fichier **[ESP32_MicroPython_Lab_Setup_v2.0.exe]([https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/download/v2.0/](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/tag/V2.0)**.
 2. Exécutez l'installateur et choisissez votre langue (**Français** ou **English**).
 3. L'installation crée automatiquement les raccourcis sur le Bureau et dans le menu Démarrer, et associe les fichiers de projet `.lab32`.
 4. Lancez **ESP32 MicroPython Lab** et commencez à expérimenter !
 
 ### Option 2 : Version Portable autonome (Sans installation)
-1. Téléchargez l'archive **[ESP32_MicroPython_Lab_v2.0_Portable.zip](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/download/v2.0/ESP32_MicroPython_Lab_v2.0_Portable.zip)**.
+1. Téléchargez l'archive **[ESP32_MicroPython_Lab_v2.0_Portable.zip]([https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/v2.0](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/tag/V2.0))**.
 2. Décompressez l'archive dans le dossier de votre choix (ou sur une clé USB).
 3. Lancez directement `ESP32_Lab.exe`.
 
