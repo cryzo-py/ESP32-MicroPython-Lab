@@ -2,112 +2,177 @@
 
 <div align="center">
 
-<img src="assets/app_icon.png" alt="ESP32 MicroPython Lab Logo" width="110" />
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg?style=for-the-badge&logo=python)
+![Framework](https://img.shields.io/badge/GUI-PySide6%20(Qt6)-orange.svg?style=for-the-badge&logo=qt)
+![License](https://img.shields.io/badge/License-Proprietary%20Non--Commercial-red.svg?style=for-the-badge)
+![Status](https://img.shields.io/badge/Tests-186%20passing-brightgreen.svg?style=for-the-badge)
 
-### Laboratoire Virtuel d'Électronique & de Programmation MicroPython pour ESP32
-*Virtual MicroPython Programming & Electronics Laboratory for ESP32*
+**Environnement Virtuel de Simulation Électronique & de Programmation MicroPython pour ESP32**
 
-[![Version](https://img.shields.io/badge/Release-v2.0-0284c7.svg?style=for-the-badge&logo=github)](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/latest)
-[![Platform](https://img.shields.io/badge/Plateforme-Windows%2010%20%2F%2011%20(64--bit)-0078d7.svg?style=for-the-badge&logo=windows)](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/latest)
-[![Languages](https://img.shields.io/badge/Langues-Français%20%7C%20English-10b981.svg?style=for-the-badge)](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/latest)
-[![License](https://img.shields.io/badge/Licence-Propriétaire%20%2F%20Pédagogique-e11d48.svg?style=for-the-badge)](LICENSE)
+*Conçu & Développé par **Fares Bel Haj Ali***
 
-<br/>
+[Fonctionnalités](#-fonctionnalités-clés) •
+[Composants](#-bibliothèque-de-composants) •
+[Cursus Pédagogique](#-cursus-pédagogique-10-tps) •
+[Raccourcis Clavier](#-raccourcis-clavier) •
+[Installation](#-installation--démarrage) •
+[Licence](#-licence--propriété-intellectuelle)
 
-**Conçu & Développé par [Fares Bel Haj Ali](https://github.com/cryzo-py)**  
-📧 Contact : [belhadj.fares@gmail.com](mailto:belhadj.fares@gmail.com)
-
-<br/>
-
-[![Download Installer](https://img.shields.io/badge/Télécharger-Installateur%20Windows%20v2.0%20(.exe)-0284c7?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/download/v2.0/ESP32_MicroPython_Lab_Setup_v2.0.exe)
-[![Download Portable](https://img.shields.io/badge/Télécharger-Version%20Portable%20v2.0%20(.zip)-334155?style=for-the-badge&logo=zip&logoColor=white)](https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/download/v2.0/ESP32_MicroPython_Lab_v2.0_Portable.zip)
-
-</div>
-
----
-
-## 📸 Aperçu de l'Interface
-
-<div align="center">
-  <img src="assets/screenshot.png" alt="Aperçu ESP32 MicroPython Lab" width="95%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
 </div>
 
 ---
 
 ## 📖 Présentation
 
-**ESP32 MicroPython Lab** est un environnement d'apprentissage et d'expérimentation interactif tout-en-un dédié à l'électronique embarquée, au prototypage sur microcontrôleur ESP32 et à la programmation en **MicroPython**.
+**ESP32 MicroPython Lab** est un environnement d'apprentissage interactif complet conçu pour l'enseignement et l'expérimentation de l'électronique embarquée avec le microcontrôleur ESP32 et le langage **MicroPython**.
 
-Conçu pour les lycées, universités, centres de formation, makers et passionnés d'IoT, il permet de concevoir des montages électroniques réalistes sur **platine d'essai MB-102**, de les câbler avec des **fils Dupont interactifs**, de programmer en MicroPython et d'exécuter la simulation en temps réel sans nécessiter de matériel physique dans un premier temps.
-
----
-
-## 🚀 Téléchargement & Installation
-
-### Option 1 : Installateur Windows automatique (Recommandé)
-1. Téléchargez le fichier **[ESP32_MicroPython_Lab_Setup_v2.0.exe]([https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/tag/V2.0])**.
-2. Exécutez l'installateur et choisissez votre langue (**Français** ou **English**).
-3. L'installation crée automatiquement les raccourcis sur le Bureau et dans le menu Démarrer, et associe les fichiers de projet `.lab32`.
-4. Lancez **ESP32 MicroPython Lab** et commencez à expérimenter !
-
-### Option 2 : Version Portable autonome (Sans installation)
-1. Téléchargez l'archive **[ESP32_MicroPython_Lab_v2.0_Portable.zip]([https://github.com/cryzo-py/ESP32-MicroPython-Lab/releases/tag/V2.0]))**.
-2. Décompressez l'archive dans le dossier de votre choix (ou sur une clé USB).
-3. Lancez directement `ESP32_Lab.exe`.
+L'application combine une **platine d'essai MB-102 ultra-réaliste**, un système de câblage Dupont interactif, un interpréteur MicroPython temps réel, une console REPL bidirectionnelle, un oscilloscope simulé, ainsi qu'un **moteur pédagogique d'évaluation automatique** comprenant 10 travaux pratiques (TPs) guidés.
 
 ---
 
-## ✨ Fonctionnalités Majeures
+## ✨ Fonctionnalités Clés
 
-- 🖥️ **Laboratoire Virtuel Réaliste** :
-  - Platine d'essai (Breadboard MB-102) standard 830 contacts avec modèle de continuité physique complet.
-  - Câblage Dupont interactif : insertion dynamique dans les trous de la platine, coudes déplaçables, code couleur standardisé.
-- ⚡ **Moteur de Simulation MicroPython Temps Réel** :
-  - Support natif des modules : `machine.Pin`, `machine.PWM`, `machine.ADC`, `machine.I2C`, `time.sleep`, `neopixel.NeoPixel`, etc.
-  - Exécution en arrière-plan réactive avec interruption immédiate (Stop / Reset).
-  - Passerelle Réseau Réelle (Host Network Bridge) permettant à l'ESP32 simulé d'effectuer de vraies requêtes HTTP et sockets IoT via la connexion du PC hôte.
-- 🛡️ **Validateur de Règles Électriques (ERC)** :
-  - Détection automatique des courts-circuits VCC / GND.
-  - Vérification des conflits logiques (sorties numériques reliées en court-circuit).
-  - Détection des LED sans résistance de limitation de courant.
-- 🎓 **Cursus Pédagogique & Auto-évaluation (10 TPs complets)** :
-  - Cursus guidé pas à pas : de la LED clignotante aux stations météo IoT, écrans OLED et bus I2C.
-  - Moteur d'évaluation automatique notant le montage et le code de l'élève.
-  - Exportation de comptes-rendus de TP au format HTML et export de nomenclature (BOM CSV).
-- 📊 **Instrumentation Virtuelle & Télémétrie** :
-  - Oscilloscope et analyseur logique intégrés pour observer les signaux PWM et temporels.
-  - Console série interactive et terminal REPL MicroPython bidirectionnel.
-  - Tableau de bord de l'état matériel (Hardware Status) en direct.
-- 🌐 **Entièrement Bilingue (Français & Anglais)** :
-  - Basculement instantané entre Français et Anglais depuis le menu Affichage ou dès l'installateur.
-- 🎨 **Double Thème Interface (Sombre & Clair)** :
-  - Mode sombre moderne et mode clair haute visibilité adapté aux vidéoprojecteurs.
+- 🖥️ **Vue Maquette Réaliste** :
+  - Platine d'essai (Breadboard MB-102) standard 830 points avec détection automatique de continuité électrique entre broches et rails d'alimentation (+ / -).
+  - Câblage interactif par câbles Dupont mâle-mâle : points de contrôle déplaçables, couleurs configurables, suppression intuitive.
+- ⚙️ **Moteur de Simulation MicroPython Temps Réel** :
+  - Support des modules officiels : `machine.Pin`, `machine.PWM`, `machine.ADC`, `machine.I2C`, `time.sleep`, `neopixel.NeoPixel`, etc.
+  - Exécution en thread isolé avec arrêt immédiat et gestion des boucles infinies.
+  - Console REPL interactive connectée à l'interpréteur simulé.
+- 🎓 **Cursus Pédagogique Intégré & Auto-Évaluation** :
+  - 10 Travaux Pratiques progressifs couvrant les entrées/sorties numériques, analogiques (ADC/PWM), capteurs, affichages et protocoles bus (I2C).
+  - Évaluateur d'exercices interactif vérifiant le montage matériel et le code de l'élève.
+  - Exportation de comptes-rendus complets au format HTML pour l'enseignant.
+- 🎨 **Double Thème Interface Moderne (Dark / Light)** :
+  - Mode Sombre haute technologie pour un confort visuel prolongé.
+  - Mode Clair haute lisibilité, adapté aux vidéoprojecteurs et à la lumière ambiante.
+  - Coloration syntaxique MicroPython personnalisée pour chaque thème.
+- 📈 **Outils d'Analyse Intégrés** :
+  - Simulateur d'oscilloscope pour visualiser les signaux PWM et temporels.
+  - Tableau de bord d'état matériel (Hardware Status) affichant l'état logique de tous les GPIOs.
 
 ---
 
-## 🎛️ Composants Simulés
+## 🔌 Bibliothèque de Composants
 
-| Catégorie | Composants inclus |
+| Composant | Description | Simulation |
+| :--- | :--- | :--- |
+| **ESP32 WROOM-32** | Carte microcontrôleur 30 broches | GPIOs, ADC, PWM, I2C, SPI |
+| **Breadboard MB-102** | Platine d'essai 830 contacts | Lignes A-E, F-J et bus d'alimentation |
+| **LED 5mm** | Diode électroluminescente (Rouge, Verte, Bleue, Jaune) | Rendu dynamique de brillance |
+| **Résistance** | 220Ω, 330Ω, 1kΩ, 10kΩ, etc. | Bagues de couleur réalistes |
+| **Bouton Poussoir** | Tact switch à rappel | Interaction clic / relâchement |
+| **Potentiomètre** | Résistance variable analogique | Curseur rotatif avec signal ADC |
+| **Servomoteur SG90** | Servomoteur angulaire 0–180° | Pilotage par PWM (50 Hz) |
+| **Capteur DHT22** | Capteur de température & humidité | Curseurs de simulation météo |
+| **Écran OLED SSD1306** | Afficheur graphique 128x64 pixels | Bus I2C (adresse 0x3C) |
+| **Écran LCD 16x2 I2C** | Afficheur alphanumérique HD44780 | Module I2C PCF8574 |
+| **Module Relais** | Relais électromécanique 5V | Indicateur LED & commutation |
+| **Anneau NeoPixel** | Anneau 8 / 16 / 24 LEDs RGB adressables | Contrôle individuel via module `neopixel` |
+
+---
+
+## 📚 Cursus Pédagogique (10 TPs)
+
+1. **TP 1 : Ma première LED clignotante** — Prise en main des GPIOs en sortie (`machine.Pin.OUT`).
+2. **TP 2 : Contrôle interactif par bouton poussoir** — Entrées numériques et résistances de tirage (`PULL_UP`).
+3. **TP 3 : Lecture de tension avec le potentiomètre** — Convertisseur Analogique-Numérique (`machine.ADC`).
+4. **TP 4 : Pilotage angulaire d'un servomoteur SG90** — Modulation de largeur d'impulsion (`machine.PWM`).
+5. **TP 5 : Station Météo avec Capteur DHT22** — Lecture de grandeurs physiques et affichage en temps réel.
+6. **TP 6 : Affichage graphique sur écran OLED SSD1306** — Communication bus I2C et tracé de texte/formes.
+7. **TP 7 : Mesure de distance par ultrasons (HC-SR04)** — Calcul de temps de vol et conversion métrique.
+8. **TP 8 : Afficheur Alphanumérique LCD 16x2 I2C** — Découverte du contrôleur HD44780 et bus série.
+9. **TP 9 : Commande de puissance avec module relais** — Isolation galvanique et pilotage de charges externes.
+10. **TP 10 : Anneau de LEDs RVB Adressables NeoPixel** — Programmation d'effets lumineux dynamiques (WS2812B).
+
+---
+
+## ⌨️ Raccourcis Clavier
+
+| Raccourci | Action |
 | :--- | :--- |
-| **Microcontrôleur & Platine** | ESP32 DevKit V1 (30 broches), Platine d'essai MB-102 (830 points) |
-| **Composants de base** | Diodes LED (Rouge, Verte, Bleue, Jaune), Résistances (220Ω, 330Ω, 1kΩ, 10kΩ...), Bouton-Poussoir, Interrupteur SPDT, Potentiomètre rotatif, Joystick 2 axes, Buzzer piézoélectrique, Module Relais 5V, Servomoteur angulaire SG90 |
-| **Optique & Affichage** | LED RGB 5mm (cathode commune), Ruban / Anneau NeoPixel WS2812B, Écran graphique OLED SSD1306 128x64 (I2C), Écran alphanumérique LCD 1602 (I2C) |
-| **Capteurs environnementaux** | Photorésistance LDR, Capteur de mouvement PIR HC-SR501, Capteur Température & Humidité DHT22, Télémètre ultrasons HC-SR04 |
+| <kbd>F5</kbd> | **Exécuter le code MicroPython** dans le simulateur |
+| <kbd>F6</kbd> | **Arrêter la simulation en cours** |
+| <kbd>Ctrl</kbd> + <kbd>N</kbd> | Créer un **Nouveau Projet** |
+| <kbd>Ctrl</kbd> + <kbd>O</kbd> | **Ouvrir** un projet existant (`.esp32proj`, `.esp32lab`) |
+| <kbd>Ctrl</kbd> + <kbd>S</kbd> | **Sauvegarder** le projet actuel |
+| <kbd>Ctrl</kbd> + <kbd>B</kbd> | Basculer entre le **Thème Sombre** et le **Thème Clair** |
+| <kbd>Suppr</kbd> | Supprimer le fil Dupont ou le composant sélectionné |
 
 ---
 
-## 🖥️ Configuration Requise
+## 🚀 Installation & Démarrage
 
-- **Système d'exploitation** : Windows 10 ou Windows 11 (64-bit)
-- **Processeur** : Intel / AMD Dual Core 1.5 GHz ou supérieur
-- **Mémoire vive (RAM)** : 2 Go minimum (4 Go recommandés)
-- **Espace disque** : 150 Mo d'espace libre
-- **Affichage** : Résolution 1280 x 720 minimum (1920 x 1080 recommandée)
+### Option 1 : Exécutable Autonome Windows (Recommandé pour les élèves)
+Téléchargez l'installeur ou le fichier binaire autonome `ESP32_Lab.exe` depuis la section [Releases]. Aucun prérequis Python n'est nécessaire.
+
+### Option 2 : Exécution depuis les sources Python
+
+#### Prérequis :
+- Python 3.10 ou supérieur
+- Système d'exploitation : Windows 10/11 (ou Linux/macOS avec support Qt6)
+
+#### 1. Cloner ou télécharger le dépôt :
+```bash
+git clone https://github.com/cryzo-py/ESP32-MicroPython-Lab.git
+cd "esp32-micropython-lab"
+```
+
+#### 2. Créer un environnement virtuel (optionnel mais conseillé) :
+```bash
+python -m venv venv
+# Sous Windows :
+.\venv\Scripts\activate
+```
+
+#### 3. Installer les dépendances :
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. Lancer l'application :
+```bash
+python run.py
+```
+
+#### 5. Lancer la suite de tests automatisés :
+```bash
+python -m pytest tests/ -q
+```
 
 ---
 
-## 📄 Licence & Droits d'auteur
+## 📦 Compilation de l'Exécutable (`.exe`)
 
-**Copyright © 2024-2026 Fares Bel Haj Ali. Tous droits réservés.**
+Pour compiler l'application sous Windows en exécutable autonome sans invite de commande :
 
-Ce logiciel est distribué sous licence propriétaire à usage pédagogique et personnel. La décompilation, l'ingénierie inverse et la redistribution commerciale sans autorisation préalable de l'auteur sont strictement interdites. Pour toute demande institutionnelle ou de licence établissement, veuillez contacter l'auteur : [belhadj.fares@gmail.com](mailto:belhadj.fares@gmail.com).
+```bash
+python build_exe.py
+```
+Le binaire final est produit dans le répertoire `dist/ESP32_Lab/ESP32_Lab.exe`.
+
+Pour générer l'installeur d'installation complet Windows :
+- Ouvrez `installer.iss` dans **Inno Setup Compiler 6** et cliquez sur **Compile** (ou lancez `iscc installer.iss`).
+
+---
+
+## 👤 Auteur & Contact
+
+**Fares Bel Haj Ali**  
+*Ingénieur / Concepteur & Développeur Logiciel*
+
+- 📧 **Email** : [belhadj.fares@gmail.com](mailto:belhadj.fares@gmail.com)
+- 📞 **Téléphone** : +216 22 392 646
+
+---
+
+## 📄 Licence & Propriété Intellectuelle
+
+Copyright © 2024–2026 **Fares Bel Haj Ali**. Tous droits réservés.
+
+Ce logiciel est distribué sous **Contrat de Licence Propriétaire d'Utilisation Éducative et Non Commerciale**.  
+L'utilisation personnelle et académique (écoles, lycées, universités, fablabs) est **libre et gratuite**.  
+Toute utilisation commerciale, revente, monétisation ou distribution modifiée sans autorisation écrite de l'auteur est **strictement interdite**.
+
+Consultez le fichier [LICENSE](LICENSE) pour les conditions juridiques complètes.

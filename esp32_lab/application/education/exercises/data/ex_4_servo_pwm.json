@@ -1,0 +1,99 @@
+{
+  "id": "ex_4_servo_pwm",
+  "title": "TP 4 : Pilotage angulaire d'un Servomoteur SG90",
+  "summary": "Générez un signal PWM 50 Hz pour positionner un servomoteur de 0° à 180°.",
+  "mission": {
+    "context": "Générez un signal PWM 50 Hz pour positionner un servomoteur de 0° à 180°.",
+    "mission": "**Consigne de l'exercice :**\n1. Reliez le servomoteur au **GPIO 18**.\n2. Programmez un balayage automatique d'angle de 0° à 180° puis retour à 0°.",
+    "objective": "Terminer le TP 4 : Pilotage angulaire d'un Servomoteur SG90",
+    "constraints": []
+  },
+  "difficulty": "INTERMEDIATE",
+  "skills": [
+    "PWM",
+    "SERVO"
+  ],
+  "evaluation_rules": [
+    {
+      "id": "rule_code_pin",
+      "type": "code_pin",
+      "gpio": 18,
+      "weight": 50
+    },
+    {
+      "id": "rule_topology",
+      "type": "topology",
+      "gpio": 18,
+      "component_type": "servo",
+      "weight": 50
+    }
+  ],
+  "hints": [
+    "Vérifiez le câblage sur la platine.",
+    "Avez-vous bien déclaré les numéros de broches dans le code ?"
+  ],
+  "starter_project": {
+    "version": 1,
+    "id": "1571e43a-b3b4-4a9d-9c88-577d4afc837e",
+    "name": "Balayage Servomoteur SG90",
+    "description": "Contrôle d'angle d'un servomoteur en PWM 50Hz",
+    "board_id": "esp32_wroom_32",
+    "files": {
+      "main.py": "# Exemple 4 : Balayage automatique d'un Servomoteur SG90\nfrom machine import Pin, PWM\nfrom time import sleep\n\n# SG90 : PWM 50Hz, duty ~26 pour 0°, ~128 pour 180°\nservo = PWM(Pin(18), freq=50)\n\ndef set_angle(angle):\n    duty = int(26 + (angle / 180.0) * (128 - 26))\n    servo.duty(duty)\n    print(f\"Angle du servomoteur : {angle}° (duty={duty})\")\n\nprint(\"Démarrage du balayage du servomoteur...\")\n\nwhile True:\n    for a in range(0, 181, 30):\n        set_angle(a)\n        sleep(0.4)\n    for a in range(180, -1, -30):\n        set_angle(a)\n        sleep(0.4)\n"
+    },
+    "components": [
+      {
+        "id": "breadboard_1",
+        "type": "breadboard",
+        "name": "",
+        "x": 280,
+        "y": 50,
+        "rotation": 0.0,
+        "properties": {},
+        "pins": [],
+        "pin_insertions": {}
+      },
+      {
+        "id": "servo_1",
+        "type": "servo",
+        "name": "",
+        "x": 330,
+        "y": 140,
+        "rotation": 0.0,
+        "properties": {
+          "angle": 0.0
+        },
+        "pins": [],
+        "pin_insertions": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "w1",
+        "from_component": "esp32",
+        "from_pin": "GPIO18",
+        "to_component": "servo_1",
+        "to_pin": "sig",
+        "color": "#f97316"
+      },
+      {
+        "id": "w2",
+        "from_component": "esp32",
+        "from_pin": "VIN",
+        "to_component": "servo_1",
+        "to_pin": "vcc",
+        "color": "#ef4444"
+      },
+      {
+        "id": "w3",
+        "from_component": "esp32",
+        "from_pin": "GND_1",
+        "to_component": "servo_1",
+        "to_pin": "gnd",
+        "color": "#0f172a"
+      }
+    ],
+    "created_at": "2026-09-16T16:38:26.024549",
+    "updated_at": "2026-09-16T16:38:26.024549"
+  }
+}
