@@ -1180,14 +1180,13 @@ class MainWindow(QMainWindow):
                     return self._submit_student_work()
         self.current_project.set_main_code(self.code_editor.toPlainText())
         self._sync_scene_to_project()
-        if self.current_file_path:
-            self.current_project.name = self.current_file_path.stem
-        # Generate a new activity ID so it doesn't conflict with the original file's session
-        if getattr(self, "app_profile", "teacher") == "teacher":
-            if self.current_project.pedagogy_profile and "activity" in self.current_project.pedagogy_profile:
-                import uuid
-                self.current_project.pedagogy_profile["activity"]["id"] = f"act_{str(uuid.uuid4())[:8]}"
+        
+        if not self.current_file_path:
+            return self._save_project_as()
+            
+        self.current_project.name = self.current_file_path.stem
 
+        if getattr(self, "app_profile", "teacher") == "teacher":
             ProjectService.save_project(self.current_project, self.current_file_path)
             self.setWindowTitle(f"ESP32 MicroPython Lab — {self.current_file_path.name}")
             self.status_bar.showMessage(f"Projet sauvegardé : {self.current_file_path.name}", 3000)
@@ -1227,12 +1226,8 @@ class MainWindow(QMainWindow):
                 path += ".lab32"
             self.current_file_path = Path(path)
             self.current_project.name = self.current_file_path.stem
-        # Generate a new activity ID so it doesn't conflict with the original file's session
-        if getattr(self, "app_profile", "teacher") == "teacher":
-            if self.current_project.pedagogy_profile and "activity" in self.current_project.pedagogy_profile:
-                import uuid
-                self.current_project.pedagogy_profile["activity"]["id"] = f"act_{str(uuid.uuid4())[:8]}"
 
+        if getattr(self, "app_profile", "teacher") == "teacher":
             ProjectService.save_project(self.current_project, self.current_file_path)
             self.setWindowTitle(f"ESP32 MicroPython Lab — {self.current_file_path.name}")
             self.status_bar.showMessage(f"Projet enregistré sous {self.current_file_path.name}", 3000)
