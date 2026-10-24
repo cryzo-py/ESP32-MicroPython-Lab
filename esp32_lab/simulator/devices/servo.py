@@ -40,8 +40,8 @@ class ServoModel:
         vcc_net = self.net_resolver.get_connected_pins(self.component_id, "vcc")
         gnd_net = self.net_resolver.get_connected_pins(self.component_id, "gnd")
         
-        has_vcc = any(p_cid == "esp32" and (p_name.startswith("3V3") or p_name.startswith("5V") or p_name.startswith("VIN")) for p_cid, p_name in vcc_net)
-        has_gnd = any(p_cid == "esp32" and p_name.startswith("GND") for p_cid, p_name in gnd_net)
+        has_vcc = any((p_cid in ("esp32", "arduino_uno") or p_cid.startswith("arduino")) and (p_name.startswith("3V3") or p_name.startswith("5V") or p_name.startswith("VIN") or p_name.startswith("IOREF")) for p_cid, p_name in vcc_net)
+        has_gnd = any((p_cid in ("esp32", "arduino_uno") or p_cid.startswith("arduino")) and p_name.startswith("GND") for p_cid, p_name in gnd_net)
         
         self.powered = has_vcc and has_gnd
 

@@ -146,29 +146,48 @@ class PhysicalPinItem(PinAnchorItem):
             event.ignore()
             return
 
+        if event.button() == Qt.LeftButton:
+            self.pin_clicked.emit(self)
+            event.accept()
+            return
+
         super().mousePressEvent(event)
 
     def paint(self, painter, option, widget=None):
-        """Rendu d'une broche physique : aucun cercle schématique au repos ou une fois insérée."""
+        """Rendu d'une broche physique : broche visible avec contact métallique au repos, surbrillance au survol/clic."""
         if self.is_inserted:
             # La broche est immergée dans l'alvéole de la plaque : aucun symbole flottant
             return
 
+        painter.setRenderHint(painter.RenderHint.Antialiasing)
+
         if self._is_active:
-            # Halo d'interaction discret lors de la création d'un câble
-            painter.setRenderHint(painter.RenderHint.Antialiasing)
-            painter.setPen(QPen(QColor("#f59e0b"), 1.5))
-            painter.setBrush(QBrush(QColor(245, 158, 11, 130)))
-            painter.drawEllipse(QPointF(0, 0), 3.0, 3.0)
+            # Halo d'interaction actif lors de la création d'un câble (Orange)
+            painter.setPen(QPen(QColor("#f59e0b"), 2.0))
+            painter.setBrush(QBrush(QColor(245, 158, 11, 160)))
+            painter.drawEllipse(QPointF(0, 0), 4.5, 4.5)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(QColor("#ffffff")))
+            painter.drawEllipse(QPointF(0, 0), 1.8, 1.8)
+
         elif self._is_hovered:
-            # Halo de survol discret pour le raccordement
-            painter.setRenderHint(painter.RenderHint.Antialiasing)
-            painter.setPen(QPen(QColor("#38bdf8"), 1.5))
-            painter.setBrush(QBrush(QColor(56, 189, 248, 130)))
-            painter.drawEllipse(QPointF(0, 0), 3.0, 3.0)
+            # Halo de survol discret pour le raccordement (Cyan)
+            painter.setPen(QPen(QColor("#38bdf8"), 2.0))
+            painter.setBrush(QBrush(QColor(56, 189, 248, 140)))
+            painter.drawEllipse(QPointF(0, 0), 4.5, 4.5)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(QColor("#ffffff")))
+            painter.drawEllipse(QPointF(0, 0), 1.8, 1.8)
+
         else:
-            # Au repos : pas de point schématique flottant, le composant dessine ses pattes métalliques réalistes
-            pass
+            # Au repos hors breadboard : pastille / anneau de contact métallique clairement visible
+            painter.setPen(QPen(QColor("#475569"), 1.2))
+            painter.setBrush(QBrush(QColor("#cbd5e1")))
+            painter.drawEllipse(QPointF(0, 0), 3.2, 3.2)
+            # Point de contact central doré
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(QColor("#fbbf24")))
+            painter.drawEllipse(QPointF(0, 0), 1.5, 1.5)
 
     def get_geometry(self) -> dict:
         """Retourne la géométrie et l'état physique complets de la broche."""

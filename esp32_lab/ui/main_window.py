@@ -1,5 +1,5 @@
 """
-Fenêtre principale (MainWindow) de l'application ESP32 MicroPython Lab
+Fenêtre principale (MainWindow) de l'application ESP32 & Arduino Lab
 Conforme à la maquette visuelle et aux spécifications techniques
 """
 
@@ -8,6 +8,7 @@ from PySide6.QtCore import QRectF, QSize, Qt, QSettings
 from PySide6.QtGui import QAction, QActionGroup, QFont, QIcon, QKeySequence, QPixmap, QUndoStack
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -33,6 +34,7 @@ from ..core.models.project import ProjectModel
 from ..core.project_service import ProjectService
 from ..hardware.serial_manager import SerialManager
 from ..hardware.uploader import ESP32Uploader
+from ..hardware.arduino_cli import ArduinoCLIUploader
 from ..simulator.engine import SimulationEngine
 from .canvas.circuit_scene import CircuitScene
 from .canvas.circuit_view import CircuitView
@@ -58,7 +60,7 @@ from .panels.welcome_view import WelcomeWidget
 class MainWindow(QMainWindow):
     def __init__(self, app_profile: str = 'student'):
         super().__init__()
-        self.setWindowTitle("ESP32 MicroPython Lab — Coder · Simuler · Expérimenter · Apprendre")
+        self.setWindowTitle("ESP32 & Arduino Lab — Coder · Simuler · Expérimenter · Apprendre")
         self.resize(1400, 850)
         self.setMinimumSize(1100, 650)
         self.app_profile = app_profile
@@ -69,6 +71,7 @@ class MainWindow(QMainWindow):
         self.simulation_engine = SimulationEngine()
         self.serial_manager = SerialManager(self)
         self.uploader = ESP32Uploader(self.serial_manager, self)
+        self.arduino_uploader = ArduinoCLIUploader(self.serial_manager, self)
         self.undo_stack = QUndoStack(self)
         self.menu_recent = None
 
@@ -199,6 +202,11 @@ class MainWindow(QMainWindow):
             self.circuit_scene.set_theme(theme_name)
         if hasattr(self, "schematic_scene") and self.schematic_scene:
             self.schematic_scene.set_theme(theme_name)
+        self._current_theme_name = theme_name
+        if hasattr(self, "py_editor") and self.py_editor:
+            self.py_editor.set_theme(theme_name)
+        if hasattr(self, "arduino_editor") and self.arduino_editor:
+            self.arduino_editor.set_theme(theme_name)
         if hasattr(self, "code_editor") and self.code_editor:
             self.code_editor.set_theme(theme_name)
         if hasattr(self, "welcome_widget") and self.welcome_widget:
@@ -209,6 +217,8 @@ class MainWindow(QMainWindow):
             self.repl_panel.set_theme(theme_name)
         if hasattr(self, "hardware_panel") and hasattr(self.hardware_panel, "set_theme"):
             self.hardware_panel.set_theme(theme_name)
+        if hasattr(self, "activity_panel") and hasattr(self.activity_panel, "set_theme"):
+            self.activity_panel.set_theme(theme_name)
         if hasattr(self, "oscilloscope") and hasattr(self.oscilloscope, "set_theme"):
             self.oscilloscope.set_theme(theme_name)
         if hasattr(self, "act_theme_dark") and hasattr(self, "act_theme_light"):
@@ -239,9 +249,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "btn_simulate") and self.btn_simulate:
             self.btn_simulate.setText(tr("btn_simulate"))
             self.btn_simulate.setToolTip(tr("btn_simulate_tip"))
-        if hasattr(self, "btn_upload") and self.btn_upload:
-            self.btn_upload.setText(tr("btn_upload"))
-            self.btn_upload.setToolTip(tr("btn_upload_tip"))
+        self._update_upload_button_ui()
         if hasattr(self, "btn_stop") and self.btn_stop:
             self.btn_stop.setText(tr("btn_stop"))
             self.btn_stop.setToolTip(tr("btn_stop_tip"))
@@ -347,7 +355,7 @@ class MainWindow(QMainWindow):
         title_box.setSpacing(1)
         title_box.setContentsMargins(0, 0, 0, 0)
         
-        app_title = QLabel("ESP32 MicroPython Lab")
+        app_title = QLabel("ESP32 & Arduino Lab")
         app_title.setObjectName("AppTitle")
         app_title.setMinimumWidth(210)
         title_box.addWidget(app_title)
@@ -398,8 +406,15 @@ class MainWindow(QMainWindow):
 
         # Onglet fichier avec contrôles de zoom typographique
         self.tabs = QTabWidget()
-        self.code_editor = CodeEditor()
-        self.tabs.addTab(self.code_editor, "main.py")
+        self.tabs.setObjectName("CodeTabs")
+        self.py_editor = CodeEditor(language="micropython")
+        self.arduino_editor = CodeEditor(language="arduino")
+        self._code_editor_alias = self.py_editor
+        self.tabs.addTab(self.py_editor, "🐍 main.py (MicroPython)")
+        self.tabs.addTab(self.arduino_editor, "⚡ sketch.ino (C++)")
+        self.tabs.currentChanged.connect(self._on_editor_tab_changed)
+        self.py_editor.textChanged.connect(self._mark_as_dirty)
+        self.arduino_editor.textChanged.connect(self._mark_as_dirty)
 
         # Boutons Zoom Code (- / + / 100%)
         zoom_bar = QWidget()
@@ -412,21 +427,21 @@ class MainWindow(QMainWindow):
         self.btn_zoom_out.setToolTip(tr("zoom_out_tip"))
         self.btn_zoom_out.setFixedSize(26, 22)
         self.btn_zoom_out.setStyleSheet("QPushButton { font-weight: bold; font-size: 10px; padding: 0; }")
-        self.btn_zoom_out.clicked.connect(lambda: self.code_editor.zoom_out())
+        self.btn_zoom_out.clicked.connect(lambda: self.get_active_code_editor().zoom_out())
         zoom_bar_layout.addWidget(self.btn_zoom_out)
 
         self.btn_zoom_reset = QPushButton("100%")
         self.btn_zoom_reset.setToolTip(tr("zoom_reset_tip"))
         self.btn_zoom_reset.setFixedHeight(22)
         self.btn_zoom_reset.setStyleSheet("QPushButton { font-size: 10px; padding: 0 4px; }")
-        self.btn_zoom_reset.clicked.connect(lambda: self.code_editor.zoom_reset())
+        self.btn_zoom_reset.clicked.connect(lambda: self.get_active_code_editor().zoom_reset())
         zoom_bar_layout.addWidget(self.btn_zoom_reset)
 
         self.btn_zoom_in = QPushButton("A+")
         self.btn_zoom_in.setToolTip(tr("zoom_in_tip"))
         self.btn_zoom_in.setFixedSize(26, 22)
         self.btn_zoom_in.setStyleSheet("QPushButton { font-weight: bold; font-size: 10px; padding: 0; }")
-        self.btn_zoom_in.clicked.connect(lambda: self.code_editor.zoom_in())
+        self.btn_zoom_in.clicked.connect(lambda: self.get_active_code_editor().zoom_in())
         zoom_bar_layout.addWidget(self.btn_zoom_in)
 
         self.tabs.setCornerWidget(zoom_bar, Qt.TopRightCorner)
@@ -465,6 +480,20 @@ class MainWindow(QMainWindow):
         self.btn_reset.setToolTip(tr("btn_reset_tip"))
         self.btn_reset.clicked.connect(self._reset_simulation)
         action_bar.addWidget(self.btn_reset)
+
+        # Sélecteur de carte matérielle active (ESP32 DevKit vs Arduino Uno R3)
+        lbl_board = QLabel("Carte :")
+        lbl_board.setStyleSheet("font-weight: bold; font-size: 11px;")
+        action_bar.addWidget(lbl_board)
+
+        self.combo_board = QComboBox()
+        self.combo_board.setObjectName("ComboBoardSelect")
+        self.combo_board.setFixedHeight(26)
+        self.combo_board.setToolTip("Sélectionner la carte cible du laboratoire (ESP32 ou Arduino Uno)")
+        self.combo_board.addItem("ESP32 DevKit V1", "esp32_wroom_32")
+        self.combo_board.addItem("Arduino Uno R3", "arduino_uno")
+        self.combo_board.currentIndexChanged.connect(self._on_board_combo_changed)
+        action_bar.addWidget(self.combo_board)
 
         action_bar.addStretch()
         top_box.setMinimumHeight(100)
@@ -660,7 +689,7 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage(f"Composant '{comp_type}' sélectionné. Glissez-le sur la platine pour le placer.", 4000)
 
     def _show_courses_dialog(self):
-        self.current_project.set_main_code(self.code_editor.toPlainText())
+        self._sync_editors_to_project()
         dlg = CoursesDialog(self.current_project, self)
         dlg.lesson_loaded.connect(self._on_course_lesson_loaded)
         dlg.exec()
@@ -684,6 +713,11 @@ class MainWindow(QMainWindow):
         self._load_project(p)
         self._show_workspace_view()
 
+    def _show_arduino_libraries_dialog(self):
+        from .dialogs.arduino_libraries_dialog import ArduinoLibrariesDialog
+        dlg = ArduinoLibrariesDialog(self)
+        dlg.exec()
+
     def _on_scene_selection_changed(self):
         items = self.circuit_scene.selectedItems()
         if not items:
@@ -695,19 +729,19 @@ class MainWindow(QMainWindow):
         for it in items:
             curr = it
             while curr:
-                if hasattr(curr, "component_id") and getattr(curr, "component_id") not in ("breadboard_1", "esp32"):
+                if hasattr(curr, "component_id") and getattr(curr, "component_id") not in ("breadboard_1", "esp32", "arduino_uno", "board", "uno"):
                     target_item = curr
                     break
                 curr = curr.parentItem()
             if target_item:
                 break
 
-        # Si aucun composant secondaire, vérifier si l'ESP32 est sélectionné
+        # Si aucun composant secondaire, vérifier si une carte (ESP32 / Arduino Uno) est sélectionnée
         if not target_item:
             for it in items:
                 curr = it
                 while curr:
-                    if hasattr(curr, "component_id") and getattr(curr, "component_id") == "esp32":
+                    if hasattr(curr, "component_id") and getattr(curr, "component_id") in ("esp32", "arduino_uno", "board", "uno"):
                         target_item = curr
                         break
                     curr = curr.parentItem()
@@ -719,7 +753,7 @@ class MainWindow(QMainWindow):
             return
 
         comp_id = getattr(target_item, "component_id", None)
-        if not comp_id or comp_id == "breadboard_1":
+        if not comp_id or comp_id == "breadboard_1" or comp_id.startswith("breadboard"):
             self.properties_panel.clear_selection()
             return
 
@@ -727,9 +761,14 @@ class MainWindow(QMainWindow):
         comp_type = getattr(target_item, "_comp_type", "")
         if not comp_type:
             cls_name = target_item.__class__.__name__.lower()
-            for t in ("resistor", "led", "rgb_led", "ldr", "pir", "joystick", "switch", "button", "potentiometer", "dht22", "oled", "hcsr04", "lcd", "relay", "servo", "buzzer", "neopixel", "board", "esp32"):
+            for t in ("resistor", "led", "rgb_led", "ldr", "pir", "joystick", "switch", "button", "potentiometer", "dht22", "oled", "hcsr04", "lcd", "relay", "servo", "buzzer", "neopixel", "arduino_uno", "uno", "board", "esp32"):
                 if t in comp_id.lower() or t in cls_name:
-                    comp_type = "esp32" if t == "board" else t
+                    if t in ("arduino_uno", "uno"):
+                        comp_type = "arduino_uno"
+                    elif t == "board":
+                        comp_type = "esp32"
+                    else:
+                        comp_type = t
                     break
         if not comp_type:
             comp_type = "component"
@@ -848,6 +887,131 @@ class MainWindow(QMainWindow):
                 item.update()
         self.schematic_scene.load_project_schematic(self.current_project)
 
+    @property
+    def code_editor(self) -> CodeEditor:
+        if hasattr(self, "tabs") and self.tabs and self.tabs.currentIndex() == 1:
+            return getattr(self, "arduino_editor", getattr(self, "_code_editor_alias", None))
+        return getattr(self, "py_editor", getattr(self, "_code_editor_alias", None))
+
+    @code_editor.setter
+    def code_editor(self, editor: CodeEditor):
+        self._code_editor_alias = editor
+        self.py_editor = editor
+
+    def get_active_code_editor(self) -> CodeEditor:
+        return self.code_editor
+
+    def _sync_editors_to_project(self):
+        if hasattr(self, "current_project") and self.current_project:
+            if hasattr(self, "py_editor") and self.py_editor:
+                self.current_project.set_python_code(self.py_editor.toPlainText())
+            if hasattr(self, "arduino_editor") and self.arduino_editor:
+                self.current_project.set_arduino_code(self.arduino_editor.toPlainText())
+
+    def _sync_project_to_editors(self):
+        if hasattr(self, "current_project") and self.current_project:
+            if hasattr(self, "py_editor") and self.py_editor:
+                self.py_editor.setPlainText(self.current_project.get_python_code())
+            if hasattr(self, "arduino_editor") and self.arduino_editor:
+                self.arduino_editor.setPlainText(self.current_project.get_arduino_code())
+
+    def _mark_as_dirty(self):
+        self._is_manually_modified = True
+
+    def _update_upload_button_ui(self):
+        """Met à jour le libellé, l'icône et l'info-bulle du bouton de téléversement selon la carte active."""
+        if not hasattr(self, "btn_upload") or not self.btn_upload:
+            return
+
+        from ..app.i18n import tr
+        board_id = getattr(self.current_project, "board_id", "") if hasattr(self, "current_project") and self.current_project else ""
+        active_tab = self.tabs.currentIndex() if hasattr(self, "tabs") and self.tabs else 0
+        is_arduino = (board_id == "arduino_uno") or (active_tab == 1)
+
+        if is_arduino:
+            self.btn_upload.setText(tr("btn_upload_arduino"))
+            self.btn_upload.setToolTip(tr("btn_upload_arduino_tip"))
+            if hasattr(self, "act_upload") and self.act_upload:
+                self.act_upload.setText(tr("act_upload_arduino"))
+        else:
+            self.btn_upload.setText(tr("btn_upload"))
+            self.btn_upload.setToolTip(tr("btn_upload_tip"))
+            if hasattr(self, "act_upload") and self.act_upload:
+                self.act_upload.setText(tr("act_upload"))
+
+    def _on_editor_tab_changed(self, index: int):
+        if not hasattr(self, "current_project") or not self.current_project:
+            return
+        if index == 1:
+            self.current_project.language = "arduino"
+        else:
+            self.current_project.language = "micropython"
+        self._sync_editors_to_project()
+        self._update_upload_button_ui()
+        curr_theme = getattr(self, "_current_theme_name", "dark")
+        if hasattr(self, "py_editor") and self.py_editor:
+            self.py_editor.set_theme(curr_theme)
+        if hasattr(self, "arduino_editor") and self.arduino_editor:
+            self.arduino_editor.set_theme(curr_theme)
+
+    def _on_board_combo_changed(self, index: int):
+        if hasattr(self, "combo_board") and self.combo_board:
+            board_id = self.combo_board.currentData()
+            self._switch_board(board_id)
+
+    def _switch_board(self, board_id: str):
+        if not board_id:
+            return
+        bid = board_id.lower().strip()
+        is_uno = bid in ("arduino_uno", "uno", "arduino")
+        canonical_id = "arduino_uno" if is_uno else "esp32_wroom_32"
+
+        if hasattr(self, "current_project") and self.current_project:
+            self.current_project.board_id = canonical_id
+
+        if hasattr(self, "simulation_engine") and self.simulation_engine:
+            from ..core.board_profiles import load_board_profile
+            try:
+                prof = load_board_profile(canonical_id)
+                self.simulation_engine.set_board_profile(prof)
+            except Exception:
+                pass
+
+        if hasattr(self, "combo_board") and self.combo_board:
+            idx = self.combo_board.findData(canonical_id)
+            if idx >= 0 and self.combo_board.currentIndex() != idx:
+                self.combo_board.blockSignals(True)
+                self.combo_board.setCurrentIndex(idx)
+                self.combo_board.blockSignals(False)
+
+        # Règle UX V4.0 : Si Arduino Uno est sélectionné, griser l'onglet MicroPython
+        if hasattr(self, "tabs") and self.tabs:
+            self.tabs.blockSignals(True)
+            if is_uno:
+                self.tabs.setTabEnabled(0, False)
+                self.tabs.setTabToolTip(0, "L'Arduino Uno R3 ne supporte que le C/C++ natif (MicroPython non supporté).")
+                self.tabs.setCurrentIndex(1)
+            else:
+                self.tabs.setTabEnabled(0, True)
+                self.tabs.setTabToolTip(0, "Code MicroPython (main.py)")
+            self.tabs.blockSignals(False)
+            curr_theme = getattr(self, "_current_theme_name", "dark")
+            if hasattr(self, "py_editor") and self.py_editor:
+                self.py_editor.set_theme(curr_theme)
+            if hasattr(self, "arduino_editor") and self.arduino_editor:
+                self.arduino_editor.set_theme(curr_theme)
+
+        # Mettre à jour dynamiquement le bouton de téléversement
+        self._update_upload_button_ui()
+
+        # Recharger la scène du circuit pour afficher la bonne carte
+        if hasattr(self, "circuit_scene") and self.circuit_scene and hasattr(self, "current_project") and self.current_project:
+            self.circuit_scene.load_project_circuit(self.current_project)
+
+        if hasattr(self, "status_bar") and self.status_bar:
+            board_label = "Arduino Uno R3" if is_uno else "ESP32 DevKit V1"
+            self.status_bar.showMessage(f"Carte active : {board_label}", 3000)
+
     def _load_project(self, project: ProjectModel):
         self.current_project = project
         if hasattr(self, 'activity_panel'):
@@ -873,18 +1037,31 @@ class MainWindow(QMainWindow):
                 else:
                     self.left_tabs.setCurrentIndex(0)
 
+        self._sync_project_to_editors()
+        board_id = getattr(project, "board_id", "esp32_wroom_32")
+        self._switch_board(board_id)
+        if board_id == "arduino_uno" or getattr(project, "language", "") in ("arduino_c", "arduino", "c++", "cpp"):
+            if hasattr(self, "tabs") and self.tabs:
+                self.tabs.blockSignals(True)
+                self.tabs.setCurrentIndex(1)
+                self.tabs.blockSignals(False)
+        else:
+            if hasattr(self, "tabs") and self.tabs:
+                self.tabs.blockSignals(True)
+                self.tabs.setCurrentIndex(0)
+                self.tabs.blockSignals(False)
+
         if hasattr(self, "undo_stack") and self.undo_stack:
             self.undo_stack.clear()
-        self.code_editor.setPlainText(project.get_main_code())
         self.circuit_scene.load_project_circuit(project)
         self.schematic_scene.load_project_schematic(project)
         self._mark_as_clean()
         if self.current_file_path:
-            self.setWindowTitle(f"ESP32 MicroPython Lab — {self.current_file_path.name}")
+            self.setWindowTitle(f"ESP32 & Arduino Lab — {self.current_file_path.name}")
         elif project.name and project.name != "Nouveau Montage":
-            self.setWindowTitle(f"ESP32 MicroPython Lab — {project.name}")
+            self.setWindowTitle(f"ESP32 & Arduino Lab — {project.name}")
         else:
-            self.setWindowTitle("ESP32 MicroPython Lab")
+            self.setWindowTitle("ESP32 & Arduino Lab")
         self.circuit_view.centerOn(220, 160)
 
     def _show_simulation_view(self):
@@ -986,13 +1163,22 @@ class MainWindow(QMainWindow):
             if reply != QMessageBox.Yes:
                 return
 
-        code = self.code_editor.toPlainText()
-        self.current_project.set_main_code(code)
-        self.code_editor.clear_error_highlight()
+        self._sync_editors_to_project()
+        active_tab = self.tabs.currentIndex() if hasattr(self, "tabs") and self.tabs else 0
+        is_arduino = (active_tab == 1) or (getattr(self.current_project, "board_id", "") == "arduino_uno")
+        if is_arduino:
+            code = self.arduino_editor.toPlainText()
+            self.arduino_editor.clear_error_highlight()
+            lang = "arduino"
+        else:
+            code = self.py_editor.toPlainText()
+            self.py_editor.clear_error_highlight()
+            lang = "micropython"
+
         self.btn_simulate.setEnabled(False)
         self.btn_stop.setEnabled(True)
-        self.simulation_engine.start(code)
-        self.status_bar.showMessage("Simulation en cours d'exécution...")
+        self.simulation_engine.start(code, language=lang)
+        self.status_bar.showMessage(f"Simulation ({lang.capitalize()}) en cours d'exécution...")
 
     def _stop_simulation(self):
         self.simulation_engine.stop()
@@ -1023,19 +1209,36 @@ class MainWindow(QMainWindow):
             state_text = "🟢 Allumée" if value else "⚪ Éteinte"
     
     def _upload_to_esp32(self):
-        code = self.code_editor.toPlainText()
+        self._sync_editors_to_project()
+        active_tab = self.tabs.currentIndex() if hasattr(self, "tabs") and self.tabs else 0
+        board_id = getattr(self.current_project, "board_id", "")
+        is_arduino = (active_tab == 1) or (board_id == "arduino_uno")
+
         if not self.serial_manager.current_port_name:
             # Demander de scanner ou sélectionner un port
             ports = self.serial_manager.scan_ports()
             if not ports:
+                board_label = "Arduino Uno" if is_arduino else "ESP32"
                 QMessageBox.warning(
                     self,
                     "Aucune carte détectée",
-                    "Veuillez brancher une carte ESP32 via le câble USB.\n"
-                    "Si elle est branchée, vérifiez vos pilotes USB-Série (CH340 / CP210x)."
+                    f"Veuillez brancher une carte {board_label} via le câble USB.\n"
+                    "Si elle est branchée, vérifiez vos pilotes USB-Série (CH340 / CP210x / FTDI)."
                 )
                 return
-        self.uploader.upload_code(code, "main.py")
+
+        if is_arduino:
+            code = self.arduino_editor.toPlainText()
+            fqbn = "arduino:avr:uno"
+            if hasattr(self, "simulation_engine") and self.simulation_engine and getattr(self.simulation_engine, "board_profile", None):
+                prof = self.simulation_engine.board_profile
+                fqbn = getattr(prof, "fqbn", None) or prof.metadata.get("fqbn") or ("arduino:avr:uno" if "uno" in prof.id.lower() else "esp32:esp32:esp32")
+            elif board_id and "esp32" in board_id.lower():
+                fqbn = "esp32:esp32:esp32"
+            self.arduino_uploader.upload_code(code, fqbn=fqbn)
+        else:
+            code = self.py_editor.toPlainText()
+            self.uploader.upload_code(code, "main.py")
 
     def _on_port_selected(self, port_name: str):
         if port_name:
@@ -1153,7 +1356,7 @@ class MainWindow(QMainWindow):
         self.current_project = ProjectService.create_empty_project()
         self.current_file_path = None
         self._load_project(self.current_project)
-        self.setWindowTitle("ESP32 MicroPython Lab")
+        self.setWindowTitle("ESP32 & Arduino Lab")
         self._show_workspace_view()
         self.status_bar.showMessage("Nouveau montage vierge créé (laboratoire prêt pour votre montage)", 4000)
 
@@ -1170,7 +1373,7 @@ class MainWindow(QMainWindow):
         self.current_file_path = None
         self._load_project(self.current_project)
         self._show_welcome_view()
-        self.setWindowTitle("ESP32 MicroPython Lab — Coder · Simuler · Expérimenter · Apprendre")
+        self.setWindowTitle("ESP32 & Arduino Lab — Coder · Simuler · Expérimenter · Apprendre")
         self.status_bar.showMessage("Projet fermé. Page d'accueil active.", 3000)
 
     def _save_project(self) -> bool:
@@ -1178,7 +1381,9 @@ class MainWindow(QMainWindow):
             if not self.current_project.pedagogy_profile or "student_submission" not in self.current_project.pedagogy_profile:
                 if self.current_project.pedagogy_profile and self.current_project.pedagogy_profile.get("is_exam"):
                     return self._submit_student_work()
-        self.current_project.set_main_code(self.code_editor.toPlainText())
+                if self.current_project.pedagogy_profile and self.current_project.pedagogy_profile.get("type") in ["TP", "EXAM"]:
+                    return self._save_project_as()
+        self._sync_editors_to_project()
         self._sync_scene_to_project()
         
         if not self.current_file_path:
@@ -1186,22 +1391,19 @@ class MainWindow(QMainWindow):
             
         self.current_project.name = self.current_file_path.stem
 
-        if getattr(self, "app_profile", "teacher") == "teacher":
-            ProjectService.save_project(self.current_project, self.current_file_path)
-            self.setWindowTitle(f"ESP32 MicroPython Lab — {self.current_file_path.name}")
-            self.status_bar.showMessage(f"Projet sauvegardé : {self.current_file_path.name}", 3000)
-            self._add_recent_file(str(self.current_file_path))
-            self._mark_as_clean()
-            return True
-        else:
-            return bool(self._save_project_as())
+        ProjectService.save_project(self.current_project, self.current_file_path)
+        self.setWindowTitle(f"ESP32 & Arduino Lab - {self.current_file_path.name}")
+        self.status_bar.showMessage(f"Projet sauvegardé : {self.current_file_path.name}", 3000)
+        self._add_recent_file(str(self.current_file_path))
+        self._mark_as_clean()
+        return True
 
     def _save_project_as(self) -> bool:
         if getattr(self, "app_profile", "teacher") == "student":
             if not self.current_project.pedagogy_profile or "student_submission" not in self.current_project.pedagogy_profile:
                 if self.current_project.pedagogy_profile and self.current_project.pedagogy_profile.get("is_exam"):
                     return self._submit_student_work()
-        self.current_project.set_main_code(self.code_editor.toPlainText())
+        self._sync_editors_to_project()
         self._sync_scene_to_project()
         
         default_name = ""
@@ -1227,9 +1429,8 @@ class MainWindow(QMainWindow):
             self.current_file_path = Path(path)
             self.current_project.name = self.current_file_path.stem
 
-        if getattr(self, "app_profile", "teacher") == "teacher":
             ProjectService.save_project(self.current_project, self.current_file_path)
-            self.setWindowTitle(f"ESP32 MicroPython Lab — {self.current_file_path.name}")
+            self.setWindowTitle(f"ESP32 & Arduino Lab - {self.current_file_path.name}")
             self.status_bar.showMessage(f"Projet enregistré sous {self.current_file_path.name}", 3000)
             self._add_recent_file(str(self.current_file_path))
             self._mark_as_clean()
@@ -1258,7 +1459,7 @@ class MainWindow(QMainWindow):
             self.current_file_path = p
             project.name = p.stem
             self._load_project(project)
-            self.setWindowTitle(f"ESP32 MicroPython Lab — {self.current_file_path.name}")
+            self.setWindowTitle(f"ESP32 & Arduino Lab — {self.current_file_path.name}")
             self._show_workspace_view()
             self.status_bar.showMessage(f"Projet chargé : {self.current_file_path.name}", 3000)
             self._add_recent_file(str(p))
@@ -1432,9 +1633,13 @@ class MainWindow(QMainWindow):
 
         # Cartes
         menu_boards = menu_comp.addMenu(tr("menu_boards"))
-        act_add_esp32 = QAction(tr("comp_esp32"), self)
-        act_add_esp32.triggered.connect(lambda: self._on_add_component("esp32"))
+        act_add_esp32 = QAction("ESP32 DevKit V1", self)
+        act_add_esp32.triggered.connect(lambda: self._switch_board("esp32_wroom_32"))
         menu_boards.addAction(act_add_esp32)
+
+        act_add_uno = QAction("Arduino Uno R3", self)
+        act_add_uno.triggered.connect(lambda: self._switch_board("arduino_uno"))
+        menu_boards.addAction(act_add_uno)
 
         # Basiques
         menu_basics = menu_comp.addMenu(tr("menu_basics"))
@@ -1617,6 +1822,11 @@ class MainWindow(QMainWindow):
         act_upload.triggered.connect(self._upload_to_esp32)
         menu_sim.addAction(act_upload)
 
+        act_arduino_libs = QAction("📦 Bibliothèques Arduino...", self)
+        act_arduino_libs.setToolTip("Gérer et installer les bibliothèques C++ Arduino (Servo, LiquidCrystal, etc.)")
+        act_arduino_libs.triggered.connect(self._show_arduino_libraries_dialog)
+        menu_sim.addAction(act_arduino_libs)
+
         menu_sim.addSeparator()
 
         # Passerelle Réseau Réelle (Host Network Bridge)
@@ -1655,6 +1865,20 @@ class MainWindow(QMainWindow):
                 
             
         # -----------------------------------------------------------------
+        # 5.8. 🛠️ OUTILS / TOOLS
+        # -----------------------------------------------------------------
+        menu_tools = menubar.addMenu("🛠️ &Outils")
+
+        act_arduino_libs_tool = QAction("📦 Gestionnaire de bibliothèques Arduino...", self)
+        act_arduino_libs_tool.setToolTip("Rechercher et installer des bibliothèques C++ Arduino")
+        act_arduino_libs_tool.triggered.connect(self._show_arduino_libraries_dialog)
+        menu_tools.addAction(act_arduino_libs_tool)
+
+        act_check_erc_tool = QAction(tr("act_erc"), self)
+        act_check_erc_tool.triggered.connect(self._run_erc_check)
+        menu_tools.addAction(act_check_erc_tool)
+
+        # -----------------------------------------------------------------
         # 6. 🎓 COURS & TPS
         # -----------------------------------------------------------------
         self.menu_courses = menubar.addMenu(tr("menu_courses"))
@@ -1670,7 +1894,24 @@ class MainWindow(QMainWindow):
 
         menu_courses.addSeparator()
 
-        courses_meta = [
+        # Sous-menu Travaux Pratiques Arduino Uno (C++)
+        menu_tps_uno = menu_courses.addMenu("⚡ Travaux Pratiques C++ (Arduino Uno)")
+        uno_courses_meta = [
+            ("uno_lesson_1_blink", "TP 1 (Uno) : Sorties Numériques & LED Clignotante (D13)"),
+            ("uno_lesson_2_button", "TP 2 (Uno) : Entrées Numériques & Bouton-Poussoir (D2)"),
+            ("uno_lesson_3_pot_adc", "TP 3 (Uno) : Lecture Analogique sur A0 (ADC 10 bits)"),
+            ("uno_lesson_4_pwm", "TP 4 (Uno) : Variateur de Lumière PWM sur D9"),
+            ("uno_lesson_5_servo", "TP 5 (Uno) : Pilotage de Servomoteur SG90 (Servo.h)"),
+            ("uno_lesson_6_traffic_lights", "TP 6 (Uno) : Feux Tricolores de Carrefour Routier"),
+        ]
+        for cid, clabel in uno_courses_meta:
+            act = QAction(clabel, self)
+            act.triggered.connect(lambda checked=False, course_id=cid: self._load_course_by_id(course_id))
+            menu_tps_uno.addAction(act)
+
+        # Sous-menu Travaux Pratiques ESP32 (MicroPython)
+        menu_tps_esp32 = menu_courses.addMenu("🐍 Travaux Pratiques MicroPython (ESP32)")
+        esp32_courses_meta = [
             ("lesson_1_gpio_led", "TP 1 : LED Clignotante (Blink)"),
             ("lesson_2_button", "TP 2 : Bouton-Poussoir & Entrée Numérique"),
             ("lesson_3_pot_adc", "TP 3 : Variateur PWM & Potentiomètre"),
@@ -1681,11 +1922,12 @@ class MainWindow(QMainWindow):
             ("lesson_8_lcd", "TP 8 : Écran LCD 1602 (I2C)"),
             ("lesson_9_relay", "TP 9 : Domotique & Relais 5V"),
             ("lesson_10_neopixel", "TP 10 : Ruban Adressable NeoPixel"),
+            ("lesson_11_wifi", "TP 11 : Wi-Fi & Serveur Web Embarqué"),
         ]
-        for cid, clabel in courses_meta:
+        for cid, clabel in esp32_courses_meta:
             act = QAction(clabel, self)
             act.triggered.connect(lambda checked=False, course_id=cid: self._load_course_by_id(course_id))
-            menu_courses.addAction(act)
+            menu_tps_esp32.addAction(act)
 
         # -----------------------------------------------------------------
         # 7. 💡 EXEMPLES
@@ -1699,24 +1941,44 @@ class MainWindow(QMainWindow):
 
         menu_examples.addSeparator()
 
-        examples_quick = [
+        # Sous-menu Exemples Arduino Uno (C++)
+        menu_examples_uno = menu_examples.addMenu("⚡ Exemples C++ Arduino (Uno)")
+        uno_examples_meta = [
+            ("uno_blink", "💡 1. Clignotement LED (Blink D13)"),
+            ("uno_button_led", "🔘 2. Bouton Poussoir & LED (D2/D13)"),
+            ("uno_pot_pwm", "🎛️ 3. Variateur PWM & Potentiomètre (A0/D9)"),
+            ("uno_servo", "🦾 4. Balayage Servomoteur SG90 (Servo.h)"),
+            ("uno_traffic_lights", "🚦 5. Feux Tricolores Routiers (D10, D11, D12)"),
+            ("uno_lcd", "📟 6. Afficheur LCD 1602 (LiquidCrystal.h)"),
+        ]
+        for ekey, elabel in uno_examples_meta:
+            act = QAction(elabel, self)
+            act.triggered.connect(lambda checked=False, k=ekey: self._load_example_by_key(k))
+            menu_examples_uno.addAction(act)
+
+        # Sous-menu Exemples ESP32 (MicroPython)
+        menu_examples_esp32 = menu_examples.addMenu("🐍 Exemples MicroPython (ESP32)")
+        esp32_examples_meta = [
             ("blink", "💡 1. Clignotement LED (Blink)"),
             ("button_led", "🔘 2. Bouton Poussoir & LED"),
             ("pot_pwm", "🎛️ 3. Variateur Potentiomètre & PWM"),
             ("servo_sweep", "🦾 4. Balayage Servomoteur SG90"),
             ("dht22_weather", "🌡️ 5. Station Météo DHT22"),
             ("oled_display", "📱 6. Écran OLED SSD1306 (I2C)"),
-            ("neopixel_ring", "🌈 7. Anneau LED NeoPixel WS2812"),
-            ("relay_control", "🔀 8. Commande Relais 5V"),
-            ("weather_cloud_iot", "🌦️ 9. Station Météo Cloud IoT"),
-            ("wifi_scanner", "🔍 10. Scanner Wi-Fi Réel"),
-            ("mqtt_client", "🌐 11. Client MQTT IoT (HiveMQ)"),
-            ("ble_scanner", "📱 12. Scanner Bluetooth BLE"),
+            ("hcsr04_sonar", "🦇 7. Télémètre Ultrason HC-SR04"),
+            ("lcd_display", "📟 8. Afficheur LCD I2C 16x2"),
+            ("relay_control", "🔌 9. Commande Relais 5V"),
+            ("neopixel_ring", "🌈 10. Anneau LED NeoPixel WS2812"),
+            ("wifi_web_server", "📶 11. Wi-Fi & Serveur Web IoT"),
+            ("weather_cloud_iot", "🌦️ 12. Station Météo Cloud IoT"),
+            ("wifi_scanner", "🔍 13. Scanner Wi-Fi Réel"),
+            ("mqtt_client", "🌐 14. Client MQTT IoT (HiveMQ)"),
+            ("ble_scanner", "📱 15. Scanner Bluetooth BLE"),
         ]
-        for ekey, elabel in examples_quick:
+        for ekey, elabel in esp32_examples_meta:
             act = QAction(elabel, self)
             act.triggered.connect(lambda checked=False, k=ekey: self._load_example_by_key(k))
-            menu_examples.addAction(act)
+            menu_examples_esp32.addAction(act)
 
         # -----------------------------------------------------------------
         # 8. ❓ AIDE
@@ -1795,7 +2057,7 @@ class MainWindow(QMainWindow):
     def _evaluate_current_circuit(self):
         from ..core.evaluator import ExerciseEvaluator
         from ..core.courses import get_course_curriculum
-        self.current_project.set_main_code(self.code_editor.toPlainText())
+        self._sync_editors_to_project()
         self._sync_scene_to_project()
 
         lesson = getattr(self, "_current_lesson", None)
@@ -1807,7 +2069,8 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Auto-évaluation", "Aucune leçon disponible pour l'évaluation.")
             return
 
-        evaluator = ExerciseEvaluator()
+        net_resolver = getattr(self.circuit_scene.topology, "net_resolver", None) if hasattr(self, "circuit_scene") and hasattr(self.circuit_scene, "topology") else None
+        evaluator = ExerciseEvaluator(net_resolver=net_resolver)
         res = evaluator.evaluate(lesson, self.current_project)
 
         status_str = "Validé avec succès ✅" if res.passed else "À corriger ❌"
@@ -1898,13 +2161,13 @@ class MainWindow(QMainWindow):
                     .footer {{ font-size: 9pt; color: #7f8c8d; text-align: right; margin-top: 30pt; }}
                 </style></head>
                 <body>
-                <h1>ESP32 MicroPython Lab - Compte Rendu</h1>
+                <h1>ESP32 & Arduino Lab - Compte Rendu</h1>
                 <p><b>Projet :</b> {self.current_project.name}<br/><b>Date :</b> {now_str}</p>
                 <h2>Montage / Circuit</h2>
                 <img src="data:image/png;base64,{img_b64}" width="100%" />
                 <h2>Code MicroPython</h2>
                 <pre>{code_text.replace('<','&lt;').replace('>','&gt;')}</pre>
-                <div class="footer">Logiciel ESP32 MicroPython Lab - Généré automatiquement</div>
+                <div class="footer">Logiciel ESP32 & Arduino Lab - Généré automatiquement</div>
                 </body></html>
                 """
                 doc = QTextDocument()
@@ -1933,7 +2196,7 @@ class MainWindow(QMainWindow):
                 section = doc.sections[0]
                 header = section.header
                 hp = header.paragraphs[0]
-                hp.text = f"ESP32 MicroPython Lab - {self.current_project.name}"
+                hp.text = f"ESP32 & Arduino Lab - {self.current_project.name}"
                 hp.style.font.size = Pt(9)
                 hp.style.font.color.rgb = docx.shared.RGBColor(127,140,141)
                 
@@ -1944,7 +2207,7 @@ class MainWindow(QMainWindow):
                 fp.style.font.size = Pt(9)
                 fp.style.font.color.rgb = docx.shared.RGBColor(127,140,141)
                 
-                doc.add_heading("ESP32 MicroPython Lab - Compte Rendu", 0)
+                doc.add_heading("ESP32 & Arduino Lab - Compte Rendu", 0)
                 doc.add_paragraph(f"Projet : {self.current_project.name}\nDate : {now_str}")
                 
                 doc.add_heading("Montage / Circuit", level=1)
@@ -1982,21 +2245,25 @@ class MainWindow(QMainWindow):
             )
 
     def _show_breadboard_help_dialog(self):
-        dlg = QMessageBox(self)
-        dlg.setWindowTitle("Guide de câblage sur Platine d'Expérimentation (Breadboard MB-102)")
-        dlg.setIcon(QMessageBox.Information)
-        dlg.setTextFormat(Qt.RichText)
-        dlg.setText("""
-        <h3>🔌 Règles fondamentales de la platine MB-102 :</h3>
-        <ul>
-            <li><b>Lignes horizontales (1 à 30) :</b> Les 5 trous d'une même ligne à gauche (<b>a-b-c-d-e</b>) sont reliés électriquement entre eux. Il en va de même à droite (<b>f-g-h-i-j</b>).</li>
-            <li><b>Rainure centrale DIP :</b> Isole complètement la colonne <i>e</i> de la colonne <i>f</i>. C'est ici que l'on insère les circuits intégrés et la carte ESP32 sans court-circuiter leurs broches opposées.</li>
-            <li><b>Rails d'alimentation verticaux :</b> Les colonnes <b>+ (rouge)</b> et <b>- (bleu/noir)</b> courent tout le long pour distribuer 3.3V / 5V et la Masse (GND).</li>
-            <li><b>Fils de liaison Dupont :</b> Cliquez sur une broche pour tirer un fil, ou <b>glissez un embout de fil</b> existant directement d'un trou à un autre avec aimantation !</li>
-            <li><b>Insertion des composants :</b> Glissez un composant sur la platine. Le contour vert indique un alignement valide sur les alvéoles.</li>
-        </ul>
-        """)
-        dlg.exec()
+        import os
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        if self.app_profile == "teacher":
+            guide_path = os.path.join(base_dir, "docs", "guide_teacher.html")
+        else:
+            guide_path = os.path.join(base_dir, "docs", "guide_student.html")
+            
+        if os.path.exists(guide_path):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(guide_path))
+        else:
+            dlg = QMessageBox(self)
+            dlg.setIcon(QMessageBox.Warning)
+            dlg.setWindowTitle("Guide introuvable")
+            dlg.setText(f"Le fichier guide HTML est introuvable : {guide_path}")
+            dlg.exec()
 
     def _show_shortcuts_dialog(self):
         dlg = QMessageBox(self)
@@ -2053,7 +2320,7 @@ class MainWindow(QMainWindow):
                 msg += f"<p><b>Notes de version :</b><br><pre style='background:#1e293b; color:#e2e8f0; padding:8px; border-radius:4px;'>{notes[:400]}</pre></p>"
 
             dlg = QMessageBox(self)
-            dlg.setWindowTitle("Mise à jour disponible — ESP32 MicroPython Lab")
+            dlg.setWindowTitle("Mise à jour disponible — ESP32 & Arduino Lab")
             dlg.setIcon(QMessageBox.Information)
             dlg.setTextFormat(Qt.RichText)
             dlg.setText(msg)
@@ -2066,7 +2333,7 @@ class MainWindow(QMainWindow):
         elif manual:
             QMessageBox.information(
                 self,
-                "Mises à jour — ESP32 MicroPython Lab",
+                "Mises à jour — ESP32 & Arduino Lab",
                 f"{tr('update_up_to_date')}\n\nVersion actuelle : v{res.get('current_version', '')} ✅"
             )
 
@@ -2170,15 +2437,14 @@ class MainWindow(QMainWindow):
                 from pathlib import Path
                 self.current_file_path = Path(path)
                 self.current_project.name = self.current_file_path.stem
-        # Generate a new activity ID so it doesn't conflict with the original file's session
-        if getattr(self, "app_profile", "teacher") == "teacher":
-            if self.current_project.pedagogy_profile and "activity" in self.current_project.pedagogy_profile:
-                import uuid
-                self.current_project.pedagogy_profile["activity"]["id"] = f"act_{str(uuid.uuid4())[:8]}"
+                # Generate a new activity ID so it doesn't conflict with the original file's session
+                if self.current_project.pedagogy_profile and "activity" in self.current_project.pedagogy_profile:
+                    import uuid
+                    self.current_project.pedagogy_profile["activity"]["id"] = f"act_{str(uuid.uuid4())[:8]}"
 
                 from ..core.project_service import ProjectService
                 ProjectService.save_project(self.current_project, self.current_file_path)
-                self.setWindowTitle(f"ESP32 MicroPython Lab - {self.current_file_path.name}")
+                self.setWindowTitle(f"ESP32 & Arduino Lab - {self.current_file_path.name}")
                 self.status_bar.showMessage(f"Projet enregistré : {self.current_file_path.name}", 3000)
                 self._add_recent_file(str(self.current_file_path))
                 self._mark_as_clean()
@@ -2190,8 +2456,10 @@ class MainWindow(QMainWindow):
         dlg = ActivityWizardDialog(self)
         if dlg.exec():
             data = dlg.get_activity_data()
+            board_id = data.get("board_id", "esp32_wroom_32")
+            language = data.get("language", "micropython")
             from ..core.project_service import ProjectService
-            self.current_project = ProjectService.create_empty_project()
+            self.current_project = ProjectService.create_empty_project(board_id=board_id, language=language)
             self.current_project.name = data["title"]
             self.current_project.pedagogy_profile = {
                 "activity": {
@@ -2199,6 +2467,8 @@ class MainWindow(QMainWindow):
                     "type": data["type"],
                     "duration_minutes": data["duration"],
                     "description": data["description"],
+                    "board_id": board_id,
+                    "language": language,
                     "success_criteria": [],
                     "hints": []
                 },
@@ -2226,11 +2496,15 @@ class MainWindow(QMainWindow):
                 "title": self.current_project.name,
                 "type": act_data.get("type", "TP"),
                 "duration": act_data.get("duration_minutes", 60),
+                "board_id": getattr(self.current_project, "board_id", "esp32_wroom_32"),
                 "description": act_data.get("description", "")
             })
         if dlg.exec():
             data = dlg.get_activity_data()
             self.current_project.name = data["title"]
+            board_id = data.get("board_id")
+            if board_id:
+                self._switch_board(board_id)
             
             # Preserve other activity stuff
             if not self.current_project.pedagogy_profile:
@@ -2242,6 +2516,8 @@ class MainWindow(QMainWindow):
             act["type"] = data["type"]
             act["duration_minutes"] = data["duration"]
             act["description"] = data["description"]
+            act["board_id"] = self.current_project.board_id
+            act["language"] = self.current_project.language
             self.current_project.pedagogy_profile["activity"] = act
             
             if hasattr(self, "activity_panel"):

@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("À propos — ESP32 MicroPython Lab")
-        self.setFixedSize(540, 580)
+        self.setWindowTitle("À propos — ESP32 & Arduino Lab")
+        self.setFixedSize(540, 610)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         self._setup_ui()
@@ -67,17 +67,17 @@ class AboutDialog(QDialog):
         title_vbox = QVBoxLayout()
         title_vbox.setSpacing(4)
 
-        app_title = QLabel("ESP32 MicroPython Lab")
+        app_title = QLabel("ESP32 & Arduino Lab")
         title_col = "#0f172a" if is_light else "#ffffff"
         app_title.setStyleSheet(f"font-size: 20px; font-weight: 800; color: {title_col}; letter-spacing: -0.5px; background: transparent;")
         title_vbox.addWidget(app_title)
 
-        subtitle = QLabel("Laboratoire virtuel d'électronique & programmation ESP32")
+        subtitle = QLabel("Laboratoire virtuel d'électronique & programmation (ESP32 & Arduino Uno)")
         sub_col = "#0284c7" if is_light else "#38bdf8"
         subtitle.setStyleSheet(f"font-size: 12px; color: {sub_col}; font-weight: 600; background: transparent;")
         title_vbox.addWidget(subtitle)
 
-        version_badge = QLabel("Version 3.0 • Édition Simulateur Réaliste MB-102")
+        version_badge = QLabel("Version 4.0 • Édition Multi-Cartes & Multi-Langages (MicroPython & Arduino C++)")
         ver_col = "#64748b" if is_light else "#94a3b8"
         version_badge.setStyleSheet(f"font-size: 11px; color: {ver_col}; font-style: italic; background: transparent;")
         title_vbox.addWidget(version_badge)
@@ -115,12 +115,13 @@ class AboutDialog(QDialog):
 
         summary_text = QLabel(
             "Environnement complet d'apprentissage et de prototypage dédié à l'électronique "
-            "et au développement MicroPython sur microcontrôleur ESP32 :<br>"
+            "et au développement sur microcontrôleurs <b>ESP32</b> et <b>Arduino Uno</b> :<br>"
             "• <b>Platine MB-102 physique</b> avec modélisation électrique et détection de contacts réels.<br>"
+            "• <b>Double support matériel</b> : ESP32 DevKit v1 (3.3V, ADC 12 bits) et Arduino Uno R3 (5V, ADC 10 bits).<br>"
+            "• <b>Double environnement de programmation</b> : MicroPython temps réel et sketchs Arduino C++ avec console REPL et moniteur série.<br>"
             "• <b>Câblage interactif Dupont</b> : déplacement libre des broches et couleurs personnalisables.<br>"
-            "• <b>Bibliothèque de composants</b> : LEDs, résistances, capteurs (DHT22, HC-SR04), écrans (OLED, LCD), relais, NeoPixel.<br>"
-            "• <b>Moteur de simulation temps réel</b> avec interpréteur MicroPython et console REPL.<br>"
-            "• <b>Cursus pédagogique</b> complet composé de 10 TPs avec auto-évaluation automatique."
+            "• <b>Bibliothèque de composants</b> : LEDs, résistances, potentiomètres, servomoteurs, capteurs (DHT22, LDR, HC-SR04), écrans, relais, NeoPixel.<br>"
+            "• <b>Cursus pédagogique & Évaluation</b> : 16 travaux pratiques progressifs et missions d'examen avec auto-évaluation automatique."
         )
         summary_text.setWordWrap(True)
         summary_text.setTextFormat(Qt.RichText)

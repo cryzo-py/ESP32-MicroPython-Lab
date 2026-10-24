@@ -23,6 +23,7 @@ class ActivityPanel(QWidget):
         self.timer.timeout.connect(self._on_timer_tick)
 
     def _setup_ui(self):
+        self.setAttribute(Qt.WA_StyledBackground, True)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
@@ -38,6 +39,7 @@ class ActivityPanel(QWidget):
         scroll.setFrameShape(QFrame.NoFrame)
         
         content = QWidget()
+        content.setObjectName("scrollContent")
         self.vbox = QVBoxLayout(content)
         self.vbox.setContentsMargins(10, 10, 10, 10)
         self.vbox.setSpacing(15)
@@ -505,6 +507,15 @@ class ActivityPanel(QWidget):
         text_col = "#0f172a" if is_light else "#f8fafc"
         result_bg = "#e2e8f0" if is_light else "#1e293b"
         
-        self.setStyleSheet(f"QWidget {{ background-color: {bg_col}; color: {text_col}; }}")
+        self.setStyleSheet(f"""
+            ActivityPanel, QScrollArea, #scrollContent {{
+                background-color: {bg_col};
+                color: {text_col};
+            }}
+            QLabel {{
+                color: {text_col};
+                background-color: transparent;
+            }}
+        """)
         if hasattr(self, 'lbl_result'):
             self.lbl_result.setStyleSheet(f"background-color: {result_bg}; padding: 10px; border-radius: 5px;")

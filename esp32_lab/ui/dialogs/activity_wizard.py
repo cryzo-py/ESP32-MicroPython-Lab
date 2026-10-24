@@ -48,6 +48,16 @@ class ActivityWizardDialog(QDialog):
         row1.addWidget(self.spin_score)
         row1.addStretch()
         layout.addLayout(row1)
+
+        # Board and Language Selection
+        row_board = QHBoxLayout()
+        row_board.addWidget(QLabel("Carte & Langage :"))
+        self.cb_board = QComboBox()
+        self.cb_board.addItem("ESP32 DevKit V1 — MicroPython", "esp32_wroom_32")
+        self.cb_board.addItem("Arduino Uno R3 — C++ (sketch.ino)", "arduino_uno")
+        row_board.addWidget(self.cb_board)
+        row_board.addStretch()
+        layout.addLayout(row_board)
         
         # Description
         layout.addWidget(QLabel("Énoncé / Instructions pour l'élève :"))
@@ -80,13 +90,22 @@ class ActivityWizardDialog(QDialog):
         act_type = data.get("type", "TP").upper()
         if hasattr(self, "cb_type"):
             self.cb_type.setCurrentIndex(1 if act_type == "EXAM" else 0)
+        if hasattr(self, "cb_board"):
+            board_id = data.get("board_id", "esp32_wroom_32")
+            idx = self.cb_board.findData(board_id)
+            if idx >= 0:
+                self.cb_board.setCurrentIndex(idx)
 
     def get_activity_data(self):
         act_type = "EXAM" if "EXAM" in self.cb_type.currentText() else "TP"
+        board_id = self.cb_board.currentData() if hasattr(self, "cb_board") else "esp32_wroom_32"
+        language = "arduino" if board_id == "arduino_uno" else "micropython"
         return {
             "title": self.txt_title.text().strip() or "Nouvelle Activité",
             "type": act_type,
             "duration": self.spin_duration.value(),
             "max_score": getattr(self, "spin_score", None) and self.spin_score.value() or 20,
+            "board_id": board_id,
+            "language": language,
             "description": self.txt_desc.toPlainText()
         }

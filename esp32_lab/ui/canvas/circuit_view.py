@@ -143,18 +143,86 @@ class CircuitView(QGraphicsView):
             pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
             scene_pos = self.mapToScene(pos)
 
-            # 1. Vérifier en priorité si on clique sur un embout Dupont de fil de connexion
+            # 0. Contrôles interactifs embarqués sur les composants (potentiomètre, bouton poussoir, switch)
+            # Si le clic vise la molette du potentiomètre ou le bouton, laisser l'événement au composant
+            # sans intercepter un trou de breadboard sous-jacent ni déplacer le composant.
+            top_comp = item
+            while top_comp and top_comp != bb and not hasattr(top_comp, "component_id"):
+                top_comp = top_comp.parentItem()
+
+            if top_comp and top_comp != bb:
+                comp_type = type(top_comp).__name__
+                if comp_type == "PotentiometerGraphicsItem":
+                    local_p = top_comp.mapFromScene(scene_pos)
+                    if local_p.toPoint().manhattanLength() < 22:
+                        super().mousePressEvent(event)
+                        return
+                elif comp_type == "ButtonGraphicsItem":
+                    local_p = top_comp.mapFromScene(scene_pos)
+                    if local_p.toPoint().manhattanLength() < 16:
+                        super().mousePressEvent(event)
+                        return
+                elif comp_type == "SlideSwitchGraphicsItem":
+                    local_p = top_comp.mapFromScene(scene_pos)
+                    from PySide6.QtCore import QRectF
+                    if QRectF(-14, -14, 28, 14).contains(local_p):
+                        super().mousePressEvent(event)
+                        return
+
+            # 1. Vérifier si on clique sur une ancre (trou de breadboard, broche de carte ou de composant)
+            # ou sur l'embout Dupont d'un fil de connexion
             self._dragging_wire_terminal = None
-            for wire in self.circuit_scene.wire_items.values():
-                term = wire.get_terminal_at(scene_pos)
-                if term:
-                    if getattr(self.circuit_scene, "interaction_policy", None) and not self.circuit_scene.interaction_policy.can_move(wire.connection_id):
-                        # Locked wire! Ignore drag.
-                        continue
-                    
+            self._is_dragging_wire_terminal = False
+            self._wire_drag_start_pos = event.position()
+
+            from .items.pin_item import PinAnchorItem
+            is_on_bb = bb and bb.contains_scene_pos(scene_pos)
+            search_radius = 4.2 if is_on_bb else 7.0
+            clicked_anchor = self.circuit_scene.find_pin_anchor_near_scene_pos(scene_pos, max_dist=search_radius)
+            if clicked_anchor is None and isinstance(item, PinAnchorItem):
+                clicked_anchor = item
+            target_wire_term = None
+
+            if clicked_anchor is not None:
+                # Si l'utilisateur clique sur un trou/broche, vérifier si un fil y est raccordé
+                for wire in self.circuit_scene.wire_items.values():
                     conn = next((c for c in self.circuit_scene.connections if c.id == wire.connection_id), None)
-                    old_comp = (conn.from_component if term == "start" else conn.to_component) if conn else ""
-                    old_pin = (conn.from_pin if term == "start" else conn.to_pin) if conn else ""
+                    if not conn:
+                        continue
+                    if conn.from_component == clicked_anchor.owner_id and conn.from_pin == clicked_anchor.pin_id:
+                        target_wire_term = (wire, "start", conn.from_component, conn.from_pin)
+                        break
+                    elif conn.to_component == clicked_anchor.owner_id and conn.to_pin == clicked_anchor.pin_id:
+                        target_wire_term = (wire, "end", conn.to_component, conn.to_pin)
+                        break
+
+                if target_wire_term is None:
+                    # L'ancre cliquée n'a PAS de fil : c'est un clic intentionnel sur le trou/broche !
+                    # Si l'utilisateur clique sur le corps d'un composant, ne pas intercepter avec le trou sous-jacent.
+                    from .items.pin_item import PhysicalPinItem
+                    if top_comp and top_comp != bb and not isinstance(item, (PinAnchorItem, PhysicalPinItem)):
+                        pass
+                    elif not (hasattr(clicked_anchor, "is_occupied") and clicked_anchor.is_occupied):
+                        self.circuit_scene._on_pin_clicked(clicked_anchor)
+                        event.accept()
+                        return
+            else:
+                # Le clic n'est pas directement dans le trou, vérifier si on clique sur le manchon plastique Dupont
+                for wire in self.circuit_scene.wire_items.values():
+                    term = wire.get_terminal_at(scene_pos)
+                    if term:
+                        conn = next((c for c in self.circuit_scene.connections if c.id == wire.connection_id), None)
+                        old_comp = (conn.from_component if term == "start" else conn.to_component) if conn else ""
+                        old_pin = (conn.from_pin if term == "start" else conn.to_pin) if conn else ""
+                        target_wire_term = (wire, term, old_comp, old_pin)
+                        break
+
+            if target_wire_term is not None:
+                wire, term, old_comp, old_pin = target_wire_term
+                if getattr(self.circuit_scene, "interaction_policy", None) and not self.circuit_scene.interaction_policy.can_move(wire.connection_id):
+                    # Locked wire! Ignore drag.
+                    pass
+                else:
                     self._dragging_wire_terminal = {
                         "wire": wire,
                         "terminal": term,
@@ -163,8 +231,6 @@ class CircuitView(QGraphicsView):
                         "old_comp_id": old_comp,
                         "old_pin_id": old_pin,
                     }
-                    wire._active_terminal = term
-                    wire.update()
                     event.accept()
                     return
 
@@ -222,13 +288,24 @@ class CircuitView(QGraphicsView):
         # 1. Gestion du déplacement interactif d'un embout de fil
         wire_drag = getattr(self, "_dragging_wire_terminal", None)
         if wire_drag and (event.buttons() & Qt.LeftButton):
+            if not getattr(self, "_is_dragging_wire_terminal", False):
+                drag_start = getattr(self, "_wire_drag_start_pos", None)
+                curr_pos = event.position() if hasattr(event, "position") else event.pos()
+                if drag_start and (curr_pos - drag_start).manhattanLength() > 4:
+                    self._is_dragging_wire_terminal = True
+                    wire = wire_drag["wire"]
+                    wire._active_terminal = wire_drag["terminal"]
+                    wire.update()
+                else:
+                    return
+
             pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
             scene_pos = self.mapToScene(pos)
             wire = wire_drag["wire"]
             terminal = wire_drag["terminal"]
 
-            # Trouver si une ancre ou un trou est proche pour l'aimantation visuelle
-            target_anchor = self.circuit_scene.find_pin_anchor_near_scene_pos(scene_pos, max_dist=18.0)
+            # Trouver si une ancre ou un trou est proche pour l'aimantation visuelle (max 12px)
+            target_anchor = self.circuit_scene.find_pin_anchor_near_scene_pos(scene_pos, max_dist=12.0)
             if target_anchor:
                 wire.set_terminal_pos(terminal, target_anchor.get_scene_center())
                 bb = self.circuit_scene.breadboard_item
@@ -287,42 +364,53 @@ class CircuitView(QGraphicsView):
         if wire_drag:
             wire = wire_drag["wire"]
             terminal = wire_drag["terminal"]
+            was_dragging = getattr(self, "_is_dragging_wire_terminal", False)
+            self._dragging_wire_terminal = None
+            self._is_dragging_wire_terminal = False
             wire._active_terminal = None
 
-            pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
-            scene_pos = self.mapToScene(pos)
+            if was_dragging:
+                pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
+                scene_pos = self.mapToScene(pos)
 
-            # Chercher l'ancre sous le point de relâchement
-            target_anchor = self.circuit_scene.find_pin_anchor_near_scene_pos(scene_pos, max_dist=20.0)
-            if target_anchor:
-                # Ancre valide : reconnecter
-                new_owner = target_anchor.owner_id
-                new_pin = target_anchor.pin_id
-                old_comp = wire_drag.get("old_comp_id")
-                old_pin = wire_drag.get("old_pin_id")
+                # Chercher l'ancre sous le point de relâchement (tolérance mesurée de 12px)
+                target_anchor = self.circuit_scene.find_pin_anchor_near_scene_pos(scene_pos, max_dist=12.0)
+                if target_anchor:
+                    # Ancre valide : reconnecter
+                    new_owner = target_anchor.owner_id
+                    new_pin = target_anchor.pin_id
+                    old_comp = wire_drag.get("old_comp_id")
+                    old_pin = wire_drag.get("old_pin_id")
 
-                if new_owner != old_comp or new_pin != old_pin:
-                    self.circuit_scene.reconnect_wire_terminal(wire.connection_id, terminal, new_owner, new_pin)
-                    if hasattr(self.circuit_scene, "undo_stack") and self.circuit_scene.undo_stack:
-                        from .undo_commands import MoveWireTerminalCommand
-                        cmd = MoveWireTerminalCommand(
-                            self.circuit_scene,
-                            wire.connection_id,
-                            terminal,
-                            old_comp,
-                            old_pin,
-                            new_owner,
-                            new_pin,
-                            initial_applied=True,
-                        )
-                        self.circuit_scene.undo_stack.push(cmd)
+                    if new_owner != old_comp or new_pin != old_pin:
+                        self.circuit_scene.reconnect_wire_terminal(wire.connection_id, terminal, new_owner, new_pin)
+                        if hasattr(self.circuit_scene, "undo_stack") and self.circuit_scene.undo_stack:
+                            from .undo_commands import MoveWireTerminalCommand
+                            cmd = MoveWireTerminalCommand(
+                                self.circuit_scene,
+                                wire.connection_id,
+                                terminal,
+                                old_comp,
+                                old_pin,
+                                new_owner,
+                                new_pin,
+                                initial_applied=True,
+                            )
+                            self.circuit_scene.undo_stack.push(cmd)
+                    else:
+                        self.circuit_scene._update_wire_geometry(wire.connection_id)
+                else:
+                    # Relâché dans le vide : réinitialiser aux coordonnées de l'ancienne ancre
+                    self.circuit_scene._update_wire_geometry(wire.connection_id)
             else:
-                # Relâché dans le vide : réinitialiser aux coordonnées de l'ancienne ancre
+                # Clic simple sans glissement : ne pas déplacer le fil, simplement le sélectionner
                 self.circuit_scene._update_wire_geometry(wire.connection_id)
+                self.circuit_scene.clearSelection()
+                wire.setSelected(True)
 
-            self._dragging_wire_terminal = None
             wire.update()
             if bb:
+                bb.clear_preview_highlights()
                 self.circuit_scene.update_all_wires()
             event.accept()
             return
@@ -450,12 +538,16 @@ class CircuitView(QGraphicsView):
         if item:
             top_item = item
             bb = self.circuit_scene.breadboard_item
-            while top_item and top_item != bb and not hasattr(top_item, "component_id"):
+            while top_item and (not getattr(top_item, "component_id", None) or type(top_item).__name__ in ("PhysicalPinItem", "PinAnchorItem", "BreadboardHoleItem")):
                 top_item = top_item.parentItem()
 
-            if top_item and top_item != bb:
+            if top_item and getattr(top_item, "component_id", None):
                 menu = QMenu(self)
-                act_rot = menu.addAction("🔄 Faire pivoter de 90° (R)")
+                is_bb = (top_item == bb or str(getattr(top_item, "component_id", "")).startswith("breadboard"))
+                if not is_bb:
+                    act_rot = menu.addAction("🔄 Faire pivoter de 90° (R)")
+                else:
+                    act_rot = None
                 
                 if is_teacher:
                     menu.addSeparator()
@@ -466,7 +558,7 @@ class CircuitView(QGraphicsView):
                 act_del = menu.addAction("🗑️ Supprimer (Suppr)")
 
                 action = menu.exec(event.globalPos())
-                if action == act_rot:
+                if act_rot and action == act_rot:
                     top_item.setSelected(True)
                     self.circuit_scene.rotate_selected_component(90.0)
                 elif action == act_del:

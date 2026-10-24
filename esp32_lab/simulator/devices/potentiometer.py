@@ -7,7 +7,8 @@ class PotentiometerModel:
         self.position = 0.5  # 0.0 to 1.0
 
     def get_analog_state(self, pin_name: str) -> AnalogState:
-        if pin_name == "sig":
+        p = pin_name.lower().strip()
+        if p in ("sig", "pin2", "2", "wiper", "out", "signal", "mid", "center"):
             val = int(self.position * 4095)
             return AnalogState(value=val, status="VALUE")
         return AnalogState(value=None, status="FLOATING")

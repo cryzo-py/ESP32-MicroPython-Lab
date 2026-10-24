@@ -22,9 +22,15 @@ def app():
 
 @pytest.fixture(autouse=True)
 def reset_globals():
-    """Réinitialise l'EventBus global avant chaque test pour éviter les fuites (BUG-008)."""
+    """Réinitialise l'EventBus global et les singletons statiques avant chaque test."""
     try:
         from esp32_lab.app.event_bus import reset_event_bus
         reset_event_bus()
+    except ImportError:
+        pass
+    try:
+        from esp32_lab.simulator.modules import machine as sim_machine
+        sim_machine.Pin._gpio_manager = None
+        sim_machine.Pin._irq_controller = None
     except ImportError:
         pass

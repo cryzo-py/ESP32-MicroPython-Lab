@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import pytest
 from PySide6.QtWidgets import QApplication
 from esp32_lab.ui.main_window import MainWindow
@@ -117,7 +117,14 @@ def test_back_to_normal_project_hides_panel(main_window):
     main_window._load_project(project2)
     assert not is_visible(main_window.activity_panel)
 
-def test_session_lifecycle_ui(main_window):
+def test_session_lifecycle_ui(main_window, monkeypatch):
+    from PySide6.QtWidgets import QDialog
+    from esp32_lab.ui.panels.education.student_identity_dialog import StudentIdentityDialog
+    monkeypatch.setattr(StudentIdentityDialog, "exec_", lambda self: QDialog.Accepted)
+    monkeypatch.setattr(StudentIdentityDialog, "get_data", lambda self: {"nom": "Dupont", "prenom": "Jean", "classe": "1G1"})
+    monkeypatch.setattr("PySide6.QtWidgets.QFileDialog.getSaveFileName", lambda *args, **kwargs: ("", ""))
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", lambda *args, **kwargs: None)
+
     project = ProjectService.create_empty_project()
     act = create_default_activity(ActivityType.TP)
     act["duration_minutes"] = 10

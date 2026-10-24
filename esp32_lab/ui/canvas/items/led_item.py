@@ -89,12 +89,8 @@ class LEDGraphicsItem(QGraphicsObject):
 
     def shape(self):
         from PySide6.QtGui import QPainterPath
-        from PySide6.QtCore import QRectF
         path = QPainterPath()
-        path.addEllipse(QRectF(-12, -18, 24, 24)) # Bulb
-        path.addRect(QRectF(-14, 4, 28, 4)) # Base
-        path.addRect(QRectF(-8, 8, 4, 30)) # Left leg
-        path.addRect(QRectF(4, 8, 4, 30)) # Right leg
+        path.addRect(self.boundingRect())
         return path
 
     def boundingRect(self) -> QRectF:
@@ -141,10 +137,7 @@ class LEDGraphicsItem(QGraphicsObject):
         painter.setBrush(Qt.NoBrush)
 
         # --- 1. Patte Anode (+) ---
-        # Si insérée, la portion sous la plaque (depth=8px) disparaît sous la surface (y=25.5)
-        # Si libre, la patte se prolonge sur toute sa longueur physique
-        target_y_a = 25.5 if self.anode_pin.is_inserted else 25.5 + 8.0
-
+        target_y_a = 25.5
         path_a = QPainterPath()
         path_a.moveTo(-2.5, 8.0)
         path_a.cubicTo(-2.5, 14.0, 0.0, 16.0, 0.0, 21.0)
@@ -162,14 +155,16 @@ class LEDGraphicsItem(QGraphicsObject):
             painter.setBrush(QBrush(QColor(15, 23, 42, 180)))
             painter.drawRect(QRectF(-1.2, 25.0, 2.4, 0.8))
         else:
-            # Pointe biseautée métallique libre
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(QBrush(QColor("#cbd5e1")))
-            painter.drawPolygon([QPointF(-0.9, target_y_a), QPointF(0.9, target_y_a), QPointF(0.0, target_y_a + 2.0)])
+            # Indicateur visuel de polarité (+) pour l'anode
+            painter.setPen(QPen(QColor("#ef4444"), 1.0))
+            f = painter.font()
+            f.setBold(True)
+            f.setPixelSize(8)
+            painter.setFont(f)
+            painter.drawText(QRectF(5, 20.5, 12, 10), Qt.AlignLeft | Qt.AlignVCenter, "+")
 
         # --- 2. Patte Cathode (-) ---
-        target_y_c = 34.0 if self.cathode_pin.is_inserted else 34.0 + 8.0
-
+        target_y_c = 34.0
         path_c = QPainterPath()
         path_c.moveTo(2.5, 8.0)
         path_c.cubicTo(2.5, 15.0, 0.0, 20.0, 0.0, 28.0)
@@ -187,10 +182,13 @@ class LEDGraphicsItem(QGraphicsObject):
             painter.setBrush(QBrush(QColor(15, 23, 42, 180)))
             painter.drawRect(QRectF(-1.2, 33.5, 2.4, 0.8))
         else:
-            # Pointe biseautée métallique libre
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(QBrush(QColor("#cbd5e1")))
-            painter.drawPolygon([QPointF(-0.9, target_y_c), QPointF(0.9, target_y_c), QPointF(0.0, target_y_c + 2.0)])
+            # Indicateur visuel de polarité (-) pour la cathode
+            painter.setPen(QPen(QColor("#3b82f6"), 1.0))
+            f = painter.font()
+            f.setBold(True)
+            f.setPixelSize(8)
+            painter.setFont(f)
+            painter.drawText(QRectF(5, 29.0, 12, 10), Qt.AlignLeft | Qt.AlignVCenter, "-")
 
     def _paint_internal_frame(self, painter: QPainter, cdata: dict):
         """Structure d'électrodes internes (Enclume / Anvil côté cathode et Tige / Post côté anode)."""

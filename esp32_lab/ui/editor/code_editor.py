@@ -6,7 +6,7 @@ from PySide6.QtCore import QRect, QSize, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QTextCharFormat, QTextCursor, QTextFormat
 from PySide6.QtWidgets import QPlainTextEdit, QTextEdit, QWidget
 
-from .syntax import PythonHighlighter
+from .syntax import PythonHighlighter, CppHighlighter
 
 
 class LineNumberArea(QWidget):
@@ -22,12 +22,16 @@ class LineNumberArea(QWidget):
 
 
 class CodeEditor(QPlainTextEdit):
-    def __init__(self, parent=None):
+    def __init__(self, language: str = "micropython", parent=None):
         super().__init__(parent)
         self.setObjectName("CodeEditor")
+        self.language = language.lower() if language else "micropython"
         self.theme_name = "dark"
         self.line_number_area = LineNumberArea(self)
-        self.highlighter = PythonHighlighter(self.document(), theme_name=self.theme_name)
+        if self.language in ("arduino", "cpp", "c", "ino"):
+            self.highlighter = CppHighlighter(self.document(), theme_name=self.theme_name)
+        else:
+            self.highlighter = PythonHighlighter(self.document(), theme_name=self.theme_name)
 
         # Configuration typographique
         font = QFont("Consolas", 11)

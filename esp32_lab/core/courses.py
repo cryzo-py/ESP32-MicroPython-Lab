@@ -16,6 +16,12 @@ from .examples import (
     create_relay_example,
     create_neopixel_example,
     create_wifi_example,
+    create_uno_blink_example,
+    create_uno_button_led_example,
+    create_uno_pot_pwm_example,
+    create_uno_servo_example,
+    create_uno_traffic_lights_example,
+    create_uno_lcd_example,
 )
 
 
@@ -31,9 +37,11 @@ class Lesson:
     required_components: list[str]
     target_pin: int | None = None
     starter_project: ProjectModel | None = None
+    board_id: str = "esp32_wroom_32"
+    language: str = "micropython"
 
 
-def get_course_curriculum() -> list[Lesson]:
+def get_esp32_curriculum() -> list[Lesson]:
     return [
         Lesson(
             id="lesson_1_gpio_led",
@@ -354,6 +362,247 @@ def get_course_curriculum() -> list[Lesson]:
             ),
             required_components=[],
             target_pin=None,
-            starter_project=create_wifi_example()
+            starter_project=create_wifi_example(),
+            board_id="esp32_wroom_32",
+            language="micropython",
         ),
     ]
+
+
+def get_uno_curriculum() -> list[Lesson]:
+    return [
+        Lesson(
+            id="uno_lesson_1_blink",
+            chapter_num=1,
+            chapter_title="Chapitre 1 : Sorties Numériques & GPIO (C++ Arduino)",
+            title="TP 1 (Uno) : Sorties Numériques & LED Clignotante",
+            summary="Maîtrisez la configuration des broches en sortie avec pinMode() et la génération de signaux carrés avec digitalWrite().",
+            theory=(
+                "### Sorties Numériques sous Arduino C/C++\n\n"
+                "La carte Arduino Uno possède 14 broches numériques (0 à 13).\n"
+                "Le point d'entrée d'un croquis Arduino repose sur deux fonctions indispensables :\n\n"
+                "```cpp\n"
+                "const int LED_PIN = 13;\n\n"
+                "void setup() {\n"
+                "  // Exécuté une seule fois à l'initialisation\n"
+                "  pinMode(LED_PIN, OUTPUT); // Configure la broche 13 en sortie\n"
+                "}\n\n"
+                "void loop() {\n"
+                "  // Répété indéfiniment en boucle continue\n"
+                "  digitalWrite(LED_PIN, HIGH); // Niveau haut (+5V) : allume la LED\n"
+                "  delay(1000);                 // Pause de 1000 millisecondes\n"
+                "  digitalWrite(LED_PIN, LOW);  // Niveau bas (0V) : éteint la LED\n"
+                "  delay(1000);\n"
+                "}\n"
+                "```\n\n"
+                "La broche 13 est directement reliée à la LED miniature 'L' intégrée au circuit imprimé de la carte."
+            ),
+            challenge=(
+                "**Consigne de l'exercice :**\n"
+                "1. Insérez une **LED Rouge** et une **Résistance 220Ω** sur la platine d'essai.\n"
+                "2. Reliez l'anode à la broche **D13** de l'Arduino Uno et la cathode au **GND** via la résistance.\n"
+                "3. Complétez `setup()` et `loop()` pour faire clignoter la LED avec une cadence de 1 seconde (1s ON, 1s OFF).\n"
+                "4. Lancez la simulation puis cliquez sur **« ✅ Évaluer mon travail »**."
+            ),
+            required_components=["led", "resistor"],
+            target_pin=13,
+            starter_project=create_uno_blink_example(),
+            board_id="arduino_uno",
+            language="arduino_c"
+        ),
+        Lesson(
+            id="uno_lesson_2_button",
+            chapter_num=2,
+            chapter_title="Chapitre 2 : Entrées Numériques & Pull-up (C++ Arduino)",
+            title="TP 2 (Uno) : Entrées Numériques & Bouton-Poussoir",
+            summary="Apprenez à lire l'état d'un bouton poussoir en exploitant la résistance de tirage interne INPUT_PULLUP.",
+            theory=(
+                "### Entrées Numériques et Résistance Interne de Tirage\n\n"
+                "Une broche configurée en entrée simple (`INPUT`) sans résistance flotte et capte du bruit parasite.\n"
+                "L'Arduino Uno dispose de résistances de tirage intégrées de 20kΩ à 50kΩ activables par logiciel :\n\n"
+                "```cpp\n"
+                "const int BTN_PIN = 2;\n"
+                "const int LED_PIN = 13;\n\n"
+                "void setup() {\n"
+                "  pinMode(BTN_PIN, INPUT_PULLUP); // Tirage vers le +5V\n"
+                "  pinMode(LED_PIN, OUTPUT);\n"
+                "}\n\n"
+                "void loop() {\n"
+                "  int etat = digitalRead(BTN_PIN);\n"
+                "  // Quand le bouton est pressé, il tire la broche à la masse (LOW)\n"
+                "  if (etat == LOW) {\n"
+                "    digitalWrite(LED_PIN, HIGH); // Allume la LED\n"
+                "  } else {\n"
+                "    digitalWrite(LED_PIN, LOW);\n"
+                "  }\n"
+                "}\n"
+                "```"
+            ),
+            challenge=(
+                "**Consigne de l'exercice :**\n"
+                "1. Connectez un **Bouton-Poussoir** entre la broche **D2** et la masse **GND**.\n"
+                "2. Configurez D2 avec `pinMode(2, INPUT_PULLUP)` dans `setup()`.\n"
+                "3. Programmez la boucle pour que la LED s'allume instantanément quand le bouton est maintenu pressé."
+            ),
+            required_components=["button", "led"],
+            target_pin=2,
+            starter_project=create_uno_button_led_example(),
+            board_id="arduino_uno",
+            language="arduino_c"
+        ),
+        Lesson(
+            id="uno_lesson_3_pot_adc",
+            chapter_num=3,
+            chapter_title="Chapitre 3 : Entrées Analogiques & ADC (C++ Arduino)",
+            title="TP 3 (Uno) : Lecture Analogique sur A0 (ADC 10 bits)",
+            summary="Convertissez une tension analogique 0-5V en valeur numérique entière de 0 à 1023 avec analogRead().",
+            theory=(
+                "### Le Convertisseur Analogique-Numérique (ADC) de l'Arduino Uno\n\n"
+                "Les broches **A0 à A5** sont raccordées à un convertisseur ADC 10 bits :\n\n"
+                "- $0\\text{ V} \\rightarrow 0$\n"
+                "- $5\\text{ V} \\rightarrow 1023$\n\n"
+                "```cpp\n"
+                "void setup() {\n"
+                "  Serial.begin(9600); // Initialise la liaison série virtuelle\n"
+                "}\n\n"
+                "void loop() {\n"
+                "  int val = analogRead(A0); // Valeur de 0 à 1023\n"
+                "  float tension = val * (5.0 / 1023.0);\n"
+                "  Serial.print(\"Valeur brute : \");\n"
+                "  Serial.print(val);\n"
+                "  Serial.print(\" -> Tension : \");\n"
+                "  Serial.print(tension);\n"
+                "  Serial.println(\" V\");\n"
+                "  delay(200);\n"
+                "}\n"
+                "```"
+            ),
+            challenge=(
+                "**Consigne de l'exercice :**\n"
+                "1. Câblez un **Potentiomètre** : broche 1 au 5V, broche 3 au GND, et broche curseur (centre) sur **A0**.\n"
+                "2. Lisez la valeur analogique et transmettez-la à la console avec `Serial.println()`."
+            ),
+            required_components=["potentiometer"],
+            target_pin=14, # A0 = 14
+            starter_project=create_uno_pot_pwm_example(),
+            board_id="arduino_uno",
+            language="arduino_c"
+        ),
+        Lesson(
+            id="uno_lesson_4_pwm",
+            chapter_num=4,
+            chapter_title="Chapitre 4 : Modulation de Largeur d'Impulsion (PWM)",
+            title="TP 4 (Uno) : Variateur de Lumière PWM sur D9",
+            summary="Faites varier la puissance efficace délivrée à une LED avec analogWrite() et la fonction map().",
+            theory=(
+                "### La Modulation PWM (Pulse Width Modulation)\n\n"
+                "Sur Arduino Uno, les broches repérées par un tilde `~` (3, 5, 6, 9, 10, 11) supportent la PWM 8 bits :\n"
+                "- `analogWrite(pin, 0)` : 0% de cycle de travail (éteint)\n"
+                "- `analogWrite(pin, 128)` : 50% de cycle de travail (demi-luminosité)\n"
+                "- `analogWrite(pin, 255)` : 100% de cycle de travail (pleine puissance)\n\n"
+                "```cpp\n"
+                "const int LED_PIN = 9;\n\n"
+                "void setup() {\n"
+                "  pinMode(LED_PIN, OUTPUT);\n"
+                "}\n\n"
+                "void loop() {\n"
+                "  int val_adc = analogRead(A0);            // 0 .. 1023\n"
+                "  int pwm = map(val_adc, 0, 1023, 0, 255); // Redimensionnement 0 .. 255\n"
+                "  analogWrite(LED_PIN, pwm);\n"
+                "  delay(50);\n"
+                "}\n"
+                "```"
+            ),
+            challenge=(
+                "**Consigne de l'exercice :**\n"
+                "1. Reliez une LED à la broche PWM **D9** via sa résistance.\n"
+                "2. Utilisez la valeur lue sur le potentiomètre (A0) pour piloter la luminosité de la LED avec `analogWrite(9, ...)`."
+            ),
+            required_components=["potentiometer", "led", "resistor"],
+            target_pin=9,
+            starter_project=create_uno_pot_pwm_example(),
+            board_id="arduino_uno",
+            language="arduino_c"
+        ),
+        Lesson(
+            id="uno_lesson_5_servo",
+            chapter_num=5,
+            chapter_title="Chapitre 5 : Actionneurs & Bibliothèque Servo",
+            title="TP 5 (Uno) : Pilotage de Servomoteur SG90 (Servo.h)",
+            summary="Contrôlez l'angle de positionnement d'un servomoteur avec la bibliothèque standard Servo.",
+            theory=(
+                "### Commande de Servomoteur avec Servo.h\n\n"
+                "La bibliothèque officielle `#include <Servo.h>` génère le signal PPM à 50 Hz nécessaire au moteur :\n\n"
+                "```cpp\n"
+                "#include <Servo.h>\n\n"
+                "Servo monServo;\n\n"
+                "void setup() {\n"
+                "  monServo.attach(9); // Associe l'objet à la broche numérique D9\n"
+                "}\n\n"
+                "void loop() {\n"
+                "  monServo.write(0);   // Positionne à 0 degré\n"
+                "  delay(1000);\n"
+                "  monServo.write(90);  // Positionne à 90 degrés (centre)\n"
+                "  delay(1000);\n"
+                "  monServo.write(180); // Positionne à 180 degrés\n"
+                "  delay(1000);\n"
+                "}\n"
+                "```"
+            ),
+            challenge=(
+                "**Consigne de l'exercice :**\n"
+                "1. Branchez le signal du servomoteur sur **D9**, VCC sur **5V** et GND sur **GND**.\n"
+                "2. Écrivez un balayage aller-retour fluide entre 0° et 180° avec une boucle `for`."
+            ),
+            required_components=["servo"],
+            target_pin=9,
+            starter_project=create_uno_servo_example(),
+            board_id="arduino_uno",
+            language="arduino_c"
+        ),
+        Lesson(
+            id="uno_lesson_6_traffic_lights",
+            chapter_num=6,
+            chapter_title="Chapitre 6 : Automatismes & Cycles Temporels",
+            title="TP 6 (Uno) : Feux Tricolores de Carrefour Routier",
+            summary="Programmez un cycle complet de signalisation tricolore avec trois sorties indépendantes.",
+            theory=(
+                "### Conception d'un Automatisme à Séquences Temporelles\n\n"
+                "Chaque état du carrefour est caractérisé par une combinaison de sorties et une durée déterminée :\n\n"
+                "- **Phase 1** : Feu Vert (D10) actif pendant 3 secondes\n"
+                "- **Phase 2** : Feu Jaune (D11) actif pendant 1 seconde\n"
+                "- **Phase 3** : Feu Rouge (D12) actif pendant 3 secondes\n\n"
+                "```cpp\n"
+                "const int V = 10, J = 11, R = 12;\n\n"
+                "void setup() {\n"
+                "  pinMode(V, OUTPUT); pinMode(J, OUTPUT); pinMode(R, OUTPUT);\n"
+                "}\n\n"
+                "void loop() {\n"
+                "  digitalWrite(V, HIGH); delay(3000); digitalWrite(V, LOW);\n"
+                "  digitalWrite(J, HIGH); delay(1000); digitalWrite(J, LOW);\n"
+                "  digitalWrite(R, HIGH); delay(3000); digitalWrite(R, LOW);\n"
+                "}\n"
+                "```"
+            ),
+            challenge=(
+                "**Consigne de l'exercice :**\n"
+                "1. Connectez 3 LEDs (Verte sur D10, Jaune sur D11, Rouge sur D12) avec résistances.\n"
+                "2. Programmez le cycle automatisé des feux routiers et observez le déroulement sur la scène."
+            ),
+            required_components=["led", "resistor"],
+            target_pin=10,
+            starter_project=create_uno_traffic_lights_example(),
+            board_id="arduino_uno",
+            language="arduino_c"
+        ),
+    ]
+
+
+def get_course_curriculum(board_id: str | None = None) -> list[Lesson]:
+    if board_id in ("arduino_uno", "uno"):
+        return get_uno_curriculum()
+    elif board_id in ("esp32", "esp32_wroom_32"):
+        return get_esp32_curriculum()
+    # Par défaut : retourne l'ensemble (ESP32 d'abord pour rétrocompatibilité exacte, puis Uno)
+    return get_esp32_curriculum() + get_uno_curriculum()
+

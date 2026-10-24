@@ -14,6 +14,33 @@ from .modules import machine as sim_machine
 from .modules import time as sim_time
 
 
+class LoopInterruptTransformer(ast.NodeTransformer):
+    """Injecte une vérification d'interruption dans chaque boucle While et For pour stopper instantanément les boucles infinies."""
+    def visit_While(self, node):
+        self.generic_visit(node)
+        check = ast.If(
+            test=ast.UnaryOp(op=ast.Not(), operand=ast.Call(func=ast.Name(id='_sim_is_running', ctx=ast.Load()), args=[], keywords=[])),
+            body=[ast.Raise(exc=ast.Call(func=ast.Name(id='InterruptedError', ctx=ast.Load()), args=[ast.Constant(value='Simulation arrêtée')], keywords=[]))],
+            orelse=[]
+        )
+        ast.copy_location(check, node)
+        ast.fix_missing_locations(check)
+        node.body.insert(0, check)
+        return node
+
+    def visit_For(self, node):
+        self.generic_visit(node)
+        check = ast.If(
+            test=ast.UnaryOp(op=ast.Not(), operand=ast.Call(func=ast.Name(id='_sim_is_running', ctx=ast.Load()), args=[], keywords=[])),
+            body=[ast.Raise(exc=ast.Call(func=ast.Name(id='InterruptedError', ctx=ast.Load()), args=[ast.Constant(value='Simulation arrêtée')], keywords=[]))],
+            orelse=[]
+        )
+        ast.copy_location(check, node)
+        ast.fix_missing_locations(check)
+        node.body.insert(0, check)
+        return node
+
+
 class SimulationWorker(QObject):
     """Worker Qt exécuté dans un QThread dédié"""
     output_received = Signal(str)
@@ -45,7 +72,9 @@ class SimulationWorker(QObject):
                     e = SyntaxError(f"Accès refusé à l'attribut sécurisé : {node.attr}")
                     e.lineno = getattr(node, 'lineno', 1)
                     raise e
-            compile(tree, "main.py", "exec")
+            tree = LoopInterruptTransformer().visit(tree)
+            ast.fix_missing_locations(tree)
+            compiled_code = compile(tree, "main.py", "exec")
         except SyntaxError as se:
             line_no = se.lineno or 1
             err_msg = f"SyntaxError: {se.msg} (Ligne {line_no})"
@@ -229,6 +258,8 @@ class SimulationWorker(QObject):
             "time": sim_time,
             "sleep": sim_time.sleep,
             "sleep_ms": sim_time.sleep_ms,
+            "_sim_is_running": lambda: self._is_running,
+            "InterruptedError": InterruptedError,
         }
 
         # Hook de traçage pour stopper les boucles sans sleep (ex: while True: pass)
@@ -246,7 +277,7 @@ class SimulationWorker(QObject):
         sys.settrace(trace_lines)
 
         try:
-            exec(self.code, sim_env)
+            exec(compiled_code, sim_env)
             self.output_received.emit("\n>>> Programme terminé avec succès.\n")
         except InterruptedError:
             self.output_received.emit("\n>>> Simulation arrêtée par l'utilisateur.\n")
@@ -305,9 +336,7 @@ class MicroPythonRuntime(QObject):
             self._worker.stop()
         if self._thread:
             self._thread.quit()
-            if not self._thread.wait(600):
-                self._thread.terminate()
-                self._thread.wait(400)
+            self._thread.wait(600)
             self._thread = None
             self._worker = None
         self.simulation_finished.emit()

@@ -1063,7 +1063,7 @@ led.value(1)
         engine.stop()
 
     def test_11_verify_led_responds(self):
-        """TEST 11 : La LED s'allume et s'éteint en temps réel selon les signaux GPIO simulés."""
+        """TEST 11 : La LED s'allume et s'éteint en temps réel selon les signaux GPIO simulés (circuit fermé vers GND)."""
         from esp32_lab.ui.canvas.circuit_scene import CircuitScene
         from esp32_lab.core.models.connection import ConnectionModel
         scene = CircuitScene()
@@ -1078,6 +1078,14 @@ led.value(1)
         )
         scene.connections.append(conn)
         scene._create_wire_item(conn)
+
+        conn_gnd = ConnectionModel(
+            from_component="breadboard_1", from_pin="r11_a",
+            to_component="esp32", to_pin="GND",
+            color="#1e293b"
+        )
+        scene.connections.append(conn_gnd)
+        scene._create_wire_item(conn_gnd)
 
         assert not led.is_lit
         scene.event_bus.gpio_changed.emit(2, 1)
@@ -1960,6 +1968,15 @@ class TestESP32PhysicalBoardSuite:
         scene.topology.insert_pin(led.component_id, "anode", "r4_j")
         scene.topology.insert_pin(led.component_id, "cathode", "r5_j")
 
+        # Fermeture du circuit vers GND (même strip row_5_right que r5_j)
+        from esp32_lab.core.models.connection import ConnectionModel
+        conn_gnd = ConnectionModel(
+            from_component="breadboard_1", from_pin="r5_f",
+            to_component="esp32", to_pin="GND",
+            color="#1e293b"
+        )
+        scene.connections.append(conn_gnd)
+
         # Initialement éteints
         assert esp.gpio2_led_state is False
         assert led.is_on is False
@@ -2017,6 +2034,7 @@ class TestESP32PhysicalBoardSuite:
         esp = scene.add_component("esp32", QPointF(50, 50))
         led = scene.add_component("led", QPointF(50, 50))
         scene.topology.insert_pin(led.component_id, "anode", "r10_c")
+        scene.topology.insert_pin(led.component_id, "cathode", "r11_c")
 
         conn = ConnectionModel(
             from_component="esp32",
@@ -2026,6 +2044,15 @@ class TestESP32PhysicalBoardSuite:
             color="#38bdf8"
         )
         scene.connections.append(conn)
+
+        conn_gnd = ConnectionModel(
+            from_component="breadboard_1",
+            from_pin="r11_a",
+            to_component="esp32",
+            to_pin="GND",
+            color="#1e293b"
+        )
+        scene.connections.append(conn_gnd)
 
         scene._on_gpio_changed(2, 1)
         assert esp.gpio2_led_state is True
@@ -2149,9 +2176,25 @@ class TestESP32PhysicalBoardSuite:
         # GPIO2 est en r4_i, GPIO4 est en r5_i
         led1 = scene.add_component("led", QPointF(50, 50))
         scene.topology.insert_pin(led1.component_id, "anode", "r4_j")
+        scene.topology.insert_pin(led1.component_id, "cathode", "r6_j")
 
         led2 = scene.add_component("led", QPointF(50, 80))
         scene.topology.insert_pin(led2.component_id, "anode", "r5_j")
+        scene.topology.insert_pin(led2.component_id, "cathode", "r7_j")
+
+        # Fermeture des deux circuits vers GND (même strip droit que r6_j et r7_j)
+        from esp32_lab.core.models.connection import ConnectionModel
+        conn_gnd1 = ConnectionModel(
+            from_component="breadboard_1", from_pin="r6_f",
+            to_component="esp32", to_pin="GND",
+            color="#1e293b"
+        )
+        conn_gnd2 = ConnectionModel(
+            from_component="breadboard_1", from_pin="r7_f",
+            to_component="esp32", to_pin="GND",
+            color="#1e293b"
+        )
+        scene.connections.extend([conn_gnd1, conn_gnd2])
 
         # Activer GPIO2 seul
         scene._on_gpio_changed(2, 1)
@@ -2399,7 +2442,7 @@ class TestInteractiveDragAndDropSuite:
         assert not scene.topology.is_hole_occupied("r11_c")
 
     def test_click_on_pin_drags_parent_component(self):
-        """Cliquer sur une broche (lead/PhysicalPinItem) permet de déplacer le composant parent."""
+        """Glisser le corps du composant permet de déplacer le composant parent."""
         from esp32_lab.ui.canvas.circuit_scene import CircuitScene
         from esp32_lab.ui.canvas.circuit_view import CircuitView
         from PySide6.QtTest import QTest
@@ -2411,15 +2454,12 @@ class TestInteractiveDragAndDropSuite:
         view.show()
 
         led = scene.add_component("led", QPointF(120, 120))
-        pin = led.anode_pin
-        pin_scene_pos = pin.scenePos()
-
-        # Press on the pin
-        vp_pin = view.mapFromScene(pin_scene_pos)
-        QTest.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=vp_pin)
+        # Press on the LED body
+        vp_body = view.mapFromScene(led.scenePos())
+        QTest.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=vp_body)
 
         # Drag by 40px
-        vp_moved = vp_pin + QPoint(40, 40)
+        vp_moved = vp_body + QPoint(40, 40)
         QTest.mouseMove(view.viewport(), pos=vp_moved)
         QTest.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=vp_moved)
 

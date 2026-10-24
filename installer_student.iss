@@ -1,5 +1,5 @@
-﻿#define MyAppName "ESP32 MicroPython Lab - Student"
-#define MyAppVersion "3.0"
+#define MyAppName "ESP32 & Arduino Lab - Student"
+#define MyAppVersion "4.0"
 #define MyAppPublisher "ESP32Lab"
 #define MyAppURL "https://github.com/faresbelhaj/esp32_lab"
 
@@ -17,28 +17,28 @@ DisableProgramGroupPage=yes
 LicenseFile=LICENSE
 PrivilegesRequired=lowest
 OutputDir=dist_installer
-OutputBaseFilename=ESP32_MicroPython_Lab_Student_v3.0
+OutputBaseFilename=ESP32_Arduino_Lab_Student_v4.0
 Compression=lzma2/ultra
 SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=esp32_lab\resources\icons\app_icon.ico
-UninstallDisplayIcon={app}\ESP32_Lab_Student.exe
+UninstallDisplayIcon={app}\ESP32_Arduino_Lab_Student.exe
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "dist\ESP32_Lab_Student\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\ESP32_Arduino_Lab_Student\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\ESP32 Lab - Student"; Filename: "{app}\ESP32_Lab_Student.exe"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\ESP32_Arduino_Lab_Student.exe"
 Name: "{group}\Documentation (README)"; Filename: "{app}\README.md"
 Name: "{group}\Licence d'utilisation"; Filename: "{app}\LICENSE"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\ESP32 Lab - Student"; Filename: "{app}\ESP32_Lab_Student.exe"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\ESP32_Arduino_Lab_Student.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -46,9 +46,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Registry]
 Root: HKA; Subkey: "Software\Classes\.lab32"; ValueType: string; ValueName: ""; ValueData: "ESP32Lab.Project"; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\Classes\.lab32"; ValueType: string; ValueName: "Content Type"; ValueData: "application/x-esp32lab"; Flags: uninsdeletevalue
-Root: HKA; Subkey: "Software\Classes\ESP32Lab.Project"; ValueType: string; ValueName: ""; ValueData: "Projet ESP32 MicroPython Lab"; Flags: uninsdeletekey
-Root: HKA; Subkey: "Software\Classes\ESP32Lab.Project\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\ESP32_Lab_Student.exe"",0"
-Root: HKA; Subkey: "Software\Classes\ESP32Lab.Project\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\ESP32_Lab_Student.exe"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\ESP32Lab.Project"; ValueType: string; ValueName: ""; ValueData: "Projet ESP32 & Arduino Lab"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\ESP32Lab.Project\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\ESP32_Arduino_Lab_Student.exe"",0"
+Root: HKA; Subkey: "Software\Classes\ESP32Lab.Project\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\ESP32_Arduino_Lab_Student.exe"" ""%1"""
 
 [Run]
-Filename: "{app}\ESP32_Lab_Student.exe"; Description: "Lancer ESP32 Lab - Student"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\ESP32_Arduino_Lab_Student.exe"; Description: "Lancer {#MyAppName}"; Flags: nowait postinstall skipifsilent

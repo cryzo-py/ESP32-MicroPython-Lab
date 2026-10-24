@@ -1,4 +1,4 @@
-﻿"""
+"""
 Bibliothèque de composants (ComponentPaletteWidget) avec miniatures photoréalistes et Drag & Drop natif.
 """
 
@@ -633,6 +633,36 @@ def render_component_thumbnail(comp_type: str, size: int = 44) -> QPixmap:
         painter.setPen(QColor("#ef4444"))
         painter.drawText(QRectF(cx - 12 * s, cy - 6 * s, 24 * s, 12 * s), Qt.AlignCenter, "88:88")
 
+    elif comp_type in ("arduino_uno", "uno", "arduino"):
+        # Arduino Uno R3 : PCB bleu turquoise, connecteur USB gris, puce DIP noire
+        painter.setPen(QPen(QColor("#00a3ad"), 1.0 * s))
+        painter.setBrush(QBrush(QColor("#00878f")))
+        painter.drawRoundedRect(QRectF(cx - 16 * s, cy - 12 * s, 32 * s, 24 * s), 2.5 * s, 2.5 * s)
+
+        # Port USB Type B gris
+        painter.setPen(QPen(QColor("#475569"), 0.8 * s))
+        painter.setBrush(QBrush(QColor("#cbd5e1")))
+        painter.drawRect(QRectF(cx - 16 * s, cy - 10 * s, 6 * s, 6 * s))
+
+        # Jack DC noir
+        painter.setBrush(QBrush(QColor("#0f172a")))
+        painter.drawRect(QRectF(cx - 16 * s, cy + 3 * s, 7 * s, 7 * s))
+
+        # Puce ATmega328P DIP
+        painter.setPen(QPen(QColor("#27272a"), 0.6 * s))
+        painter.setBrush(QBrush(QColor("#18181b")))
+        painter.drawRect(QRectF(cx - 2 * s, cy - 3 * s, 14 * s, 6 * s))
+
+        # Barrettes connecteurs (haut et bas)
+        painter.setBrush(QBrush(QColor("#09090b")))
+        painter.drawRect(QRectF(cx - 8 * s, cy - 12 * s, 22 * s, 2.5 * s))
+        painter.drawRect(QRectF(cx - 6 * s, cy + 9.5 * s, 20 * s, 2.5 * s))
+
+        # Texte UNO
+        painter.setFont(QFont("Arial", int(3.5 * s), QFont.Bold))
+        painter.setPen(QColor("#ffffff"))
+        painter.drawText(QRectF(cx - 6 * s, cy - 10 * s, 16 * s, 6 * s), Qt.AlignCenter, "UNO")
+
     else:
         # Module générique
         painter.setPen(QPen(QColor("#38bdf8"), 1.5 * s))
@@ -877,6 +907,7 @@ class ComponentPaletteWidget(QWidget):
         # Catégories avec vrais composants miniatures
         self._add_category("Cartes & Platines", [
             ("esp32", "ESP32 DevKit"),
+            ("arduino_uno", "Arduino Uno"),
             ("breadboard", "Breadboard"),
         ])
 

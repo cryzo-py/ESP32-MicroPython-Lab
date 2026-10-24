@@ -1,27 +1,36 @@
-﻿from ..core.models.board import create_default_esp32_wroom
+from ..core.models.board import create_default_esp32_wroom
 from .gpio import GPIOManager
 
 class PWMManager:
-    def __init__(self, gpio_manager: GPIOManager):
+    def __init__(self, gpio_manager: GPIOManager, board_profile=None):
         self.gpio_manager = gpio_manager
-        self.board = create_default_esp32_wroom()
+        if board_profile is not None:
+            self.board = board_profile
+        elif getattr(gpio_manager, "board_profile", None) is not None:
+            self.board = gpio_manager.board_profile
+        else:
+            self.board = create_default_esp32_wroom()
         self.net_resolver = None
         self.device_models = {}
         
         # pin -> {'freq': int, 'duty': int, 'enabled': bool}
         self._states = {}
+
+    def set_board_profile(self, profile):
+        self.board = profile
         
     def configure(self, pin: int):
         pin_def = self.board.get_pin(pin)
         if not pin_def:
             raise ValueError(f"GPIO {pin} invalide.")
-        if not pin_def.supports_output:
+        if hasattr(pin_def, "supports_output") and not pin_def.supports_output:
             raise ValueError(f"Pin {pin} est Input-Only.")
         if not getattr(pin_def, 'pwm_supported', True):
             raise ValueError(f"Pin {pin} ne supporte pas le PWM.")
             
+        default_freq = getattr(self.board, "pwm_frequency_default", 1000)
         if pin not in self._states:
-            self._states[pin] = {'freq': 1000, 'duty': 0, 'enabled': True}
+            self._states[pin] = {'freq': default_freq, 'duty': 0, 'enabled': True}
             
     def get(self, pin: int):
         return self._states.get(pin)
@@ -76,15 +85,20 @@ class PWMManager:
         if not state or not state['enabled']:
             return
             
-        try:
-            net = self.net_resolver.get_connected_pins("esp32", f"GPIO{pin}")
-        except Exception:
-            return
+        net = []
+        if hasattr(self.gpio_manager, "_get_pin_net"):
+            net = self.gpio_manager._get_pin_net(pin)
+        else:
+            try:
+                net = self.net_resolver.get_connected_pins("esp32", f"GPIO{pin}")
+            except Exception:
+                return
             
         if not net:
             return
             
-        duty_norm = state['duty'] / 1023.0
+        max_duty = float(getattr(self.board, "pwm_max_duty", 1023))
+        duty_norm = state['duty'] / max_duty if max_duty > 0 else 0.0
         freq = state['freq']
         
         # VERY IMPORTANT: Notify GPIO Manager so the UI catches it (oscilloscope, visual updates)

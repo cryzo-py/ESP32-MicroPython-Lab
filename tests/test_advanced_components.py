@@ -22,7 +22,7 @@ def test_examples_library():
 
     for key, proj in examples.items():
         assert proj.name
-        assert "main.py" in proj.files
+        assert ("main.py" in proj.files) or ("sketch.ino" in proj.files)
         assert len(proj.components) > 0
 
 

@@ -73,14 +73,22 @@ class WireGraphicsItem(QGraphicsPathItem):
             self.end_pos = pos
         self.update_path()
 
-    def get_terminal_at(self, scene_pos: QPointF, tolerance: float = 12.0) -> str | None:
+    def get_terminal_at(self, scene_pos: QPointF, tolerance: float = 4.0) -> str | None:
         """Détecte si une position globale se trouve au-dessus de l'embout de départ ou d'arrivée."""
-        d_start = math.hypot(scene_pos.x() - self.start_pos.x(), scene_pos.y() - (self.start_pos.y() - 6.0))
-        if d_start <= tolerance:
+        # Le manchon Dupont mesure 5.8px de large (±2.9px) et ~13px de hauteur (-12.8px à +2.0px).
+        # La tolérance horizontale max_dx ne doit JAMAIS dépasser la demi-distance entre trous de platine (8.5 / 2 = 4.25px).
+        max_dx = min(tolerance, 3.8)
+
+        # 1. Test départ
+        dx_start = abs(scene_pos.x() - self.start_pos.x())
+        dy_start = scene_pos.y() - self.start_pos.y()
+        if dx_start <= max_dx and -13.5 <= dy_start <= 2.5:
             return "start"
 
-        d_end = math.hypot(scene_pos.x() - self.end_pos.x(), scene_pos.y() - (self.end_pos.y() - 6.0))
-        if d_end <= tolerance:
+        # 2. Test arrivée
+        dx_end = abs(scene_pos.x() - self.end_pos.x())
+        dy_end = scene_pos.y() - self.end_pos.y()
+        if dx_end <= max_dx and -13.5 <= dy_end <= 2.5:
             return "end"
 
         return None
@@ -126,9 +134,9 @@ class WireGraphicsItem(QGraphicsPathItem):
             s = QPainterPathStroker()
             s.setWidth(10.0)
             stroker.addPath(s.createStroke(p))
-        # Ajouter les boîtiers Dupont aux deux extrémités
-        stroker.addRect(QRectF(self.start_pos.x() - 6.0, self.start_pos.y() - 14.0, 12.0, 16.0))
-        stroker.addRect(QRectF(self.end_pos.x() - 6.0, self.end_pos.y() - 14.0, 12.0, 16.0))
+        # Ajouter les boîtiers Dupont aux deux extrémités (calibrés sur la largeur réelle de 5.8px)
+        stroker.addRect(QRectF(self.start_pos.x() - 3.2, self.start_pos.y() - 13.0, 6.4, 15.0))
+        stroker.addRect(QRectF(self.end_pos.x() - 3.2, self.end_pos.y() - 13.0, 6.4, 15.0))
         return stroker
 
     def boundingRect(self) -> QRectF:

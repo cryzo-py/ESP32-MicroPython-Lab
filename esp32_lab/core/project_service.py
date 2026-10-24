@@ -9,12 +9,16 @@ import zipfile
 from .models.board import create_default_esp32_wroom
 from .models.component import ComponentModel, ComponentPin
 from .models.connection import ConnectionModel
-from .models.project import DEFAULT_MAIN_PY, ProjectModel
+from .models.project import DEFAULT_MAIN_PY, DEFAULT_ARDUINO_INO, ProjectModel
 
 
 class ProjectService:
     @staticmethod
-    def create_empty_project(name: str = "Nouveau Montage") -> ProjectModel:
+    def create_empty_project(
+        name: str = "Nouveau Montage",
+        board_id: str = "esp32_wroom_32",
+        language: str = "micropython"
+    ) -> ProjectModel:
         """Crée un projet totalement vierge (platine MB-102 prête, aucun composant branché, aucun fil)."""
         breadboard = ComponentModel(
             id="breadboard_1",
@@ -24,11 +28,17 @@ class ProjectService:
             y=50,
             properties={"size": "half"},
         )
+        files = {
+            "main.py": "",
+            "sketch.ino": "",
+        }
+
         return ProjectModel(
             name=name,
             description="Montage vierge à construire.",
-            board_id="esp32_wroom_32",
-            files={"main.py": "# ESP32 MicroPython Lab\n# Écrivez votre code MicroPython ici\n\n"},
+            board_id=board_id,
+            language=language,
+            files=files,
             components=[breadboard],
             connections=[],
         )

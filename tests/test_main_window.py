@@ -13,7 +13,7 @@ from esp32_lab.ui.main_window import MainWindow
 
 def test_main_window_instantiation(app):
     window = MainWindow()
-    assert window.windowTitle().startswith("ESP32 MicroPython Lab")
+    assert window.windowTitle().startswith("ESP32 & Arduino Lab")
     assert window.code_editor is not None
     assert "main.py" in window.current_project.files
     assert window.circuit_scene is not None

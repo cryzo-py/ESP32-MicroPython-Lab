@@ -44,6 +44,16 @@ class ServoGraphicsItem(QGraphicsObject):
         self.pin_sig = PinAnchorItem(component_id, "sig", "PWM (Orange)", parent=self)
         self.pin_sig.setPos(16, 42)
 
+    def get_pin_anchor(self, pin_id: str) -> PinAnchorItem | None:
+        pid = pin_id.lower().strip()
+        if pid in ("sig", "pwm", "control", "orange", "signal", "pin"):
+            return self.pin_sig
+        elif pid in ("vcc", "5v", "power", "red", "vin"):
+            return self.pin_vcc
+        elif pid in ("gnd", "ground", "brown", "black"):
+            return self.pin_gnd
+        return None
+
     def boundingRect(self) -> QRectF:
         return QRectF(-55, -50, 110, 102)
 

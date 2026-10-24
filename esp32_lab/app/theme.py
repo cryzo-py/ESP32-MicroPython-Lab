@@ -211,7 +211,7 @@ QPushButton.StopBtn:disabled, QPushButton#BtnStop:disabled {
 }
 
 /* Code Editor */
-QPlainTextEdit.CodeEditor {
+QPlainTextEdit#CodeEditor, QPlainTextEdit.CodeEditor {
     background-color: #0f172a;
     color: #f8fafc;
     border: 1px solid #2a3449;

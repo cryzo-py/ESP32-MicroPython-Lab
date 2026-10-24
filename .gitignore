@@ -35,3 +35,14 @@ $RECYCLE.BIN/
 *.db
 *.log
 *.sqlite3
+
+# Archives & packages
+*.zip
+*.tar.gz
+*.7z
+
+# Scratch & temporary test artifacts
+exp.lab32
+qa_*.py
+uno_vertical_with_headers.png
+examples/Exam_*

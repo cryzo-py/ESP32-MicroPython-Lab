@@ -75,18 +75,18 @@ class SplashScreen(QWidget):
         card_layout.addWidget(self.logo_label)
 
         # 2. Nom de l'application
-        self.title_label = QLabel("ESP32 MicroPython Lab")
+        self.title_label = QLabel("ESP32 & Arduino Lab")
         self.title_label.setStyleSheet("font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;")
         self.title_label.setAlignment(Qt.AlignCenter)
         card_layout.addWidget(self.title_label)
 
         # 3. Slogan & Badge
-        self.tagline_label = QLabel("Laboratoire Virtuel de Programmation & Électronique")
+        self.tagline_label = QLabel("Laboratoire Virtuel d'Électronique & Programmation (MicroPython & Arduino C++)")
         self.tagline_label.setStyleSheet("font-size: 12px; color: #38bdf8; font-weight: 600;")
         self.tagline_label.setAlignment(Qt.AlignCenter)
         card_layout.addWidget(self.tagline_label)
 
-        badge = QLabel("Édition Platine MB-102 & MicroPython Hardware Simulation")
+        badge = QLabel("Édition Multi-Cartes (ESP32 & Arduino Uno) • Platine MB-102")
         badge.setStyleSheet("""
             background-color: #1e293b;
             color: #94a3b8;

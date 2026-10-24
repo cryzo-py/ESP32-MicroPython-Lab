@@ -137,7 +137,19 @@ class DeleteItemsCommand(QUndoCommand):
         self.items_data = []
         self.wires_data = []
 
+        # Développer la liste pour inclure les composants insérés sur une plaque breadboard supprimée
+        expanded_items = list(items_to_delete)
         for it in items_to_delete:
+            if hasattr(it, "component_id") and (it == getattr(scene, "breadboard_item", None) or str(getattr(it, "component_id", "")).startswith("breadboard")):
+                for child in it.childItems():
+                    child_cid = getattr(child, "component_id", None)
+                    if child_cid and child_cid in scene.component_items and child not in expanded_items:
+                        expanded_items.append(child)
+
+        views = self.scene.views()
+        main_win = views[0].window() if views else None
+
+        for it in expanded_items:
             from .wire_item import WireGraphicsItem
             if isinstance(it, WireGraphicsItem):
                 conn = next((c for c in scene.connections if c.id == it.connection_id), None)
@@ -150,12 +162,29 @@ class DeleteItemsCommand(QUndoCommand):
                         to_pin=conn.to_pin,
                         color=conn.color
                     ))
-            elif hasattr(it, "component_id"):
-                cid = it.component_id
-                if cid.startswith("breadboard") or cid in ("esp32", "board"):
+            elif hasattr(it, "component_id") or it == scene.board_item or it == scene.breadboard_item:
+                cid = getattr(it, "component_id", None)
+                if not cid:
+                    if it == scene.board_item:
+                        cid = getattr(scene.board_item, "board_id", "esp32")
+                    elif it == scene.breadboard_item:
+                        cid = getattr(scene.breadboard_item, "breadboard_id", "breadboard_1")
+
+                if not cid:
                     continue
+
+                # Respecter la politique de verrouillage pédagogique si applicable
+                if hasattr(scene, "interaction_policy") and not scene.interaction_policy.can_delete(cid):
+                    continue
+
+                aliases = {cid}
+                if cid in ("esp32", "board"):
+                    aliases.update({"esp32", "board"})
+                elif cid in ("arduino_uno", "uno"):
+                    aliases.update({"arduino_uno", "uno"})
+
                 for c in scene.connections:
-                    if (c.from_component == cid or c.to_component == cid) and not any(w.id == c.id for w in self.wires_data):
+                    if (c.from_component in aliases or c.to_component in aliases) and not any(w.id == c.id for w in self.wires_data):
                         self.wires_data.append(ConnectionModel(
                             id=c.id,
                             from_component=c.from_component,
@@ -165,8 +194,7 @@ class DeleteItemsCommand(QUndoCommand):
                             color=c.color
                         ))
                 c_model = None
-                main_win = self.scene.views()[0].window()
-                if hasattr(main_win, "current_project"):
+                if main_win and hasattr(main_win, "current_project") and main_win.current_project:
                     c_model = next((c for c in main_win.current_project.components if c.id == cid), None)
 
                 self.items_data.append({
@@ -188,32 +216,69 @@ class DeleteItemsCommand(QUndoCommand):
             if conn and conn in self.scene.connections:
                 self.scene.connections.remove(conn)
 
-        for comp_dict in self.items_data:
+        # Retirer les composants insérés d'abord, puis la breadboard si présente
+        bb_item = getattr(self.scene, "breadboard_item", None)
+        ordered_comps = [c for c in self.items_data if c["item"] != bb_item and not str(c.get("cid", "")).startswith("breadboard")] + \
+                        [c for c in self.items_data if c["item"] == bb_item or str(c.get("cid", "")).startswith("breadboard")]
+
+        views = self.scene.views()
+        main_win = views[0].window() if views else None
+
+        for comp_dict in ordered_comps:
             it = comp_dict["item"]
             cid = comp_dict["cid"]
             self.scene._remove_component_from_breadboard(it)
-            self.scene.removeItem(it)
+            if it.scene() == self.scene:
+                self.scene.removeItem(it)
             self.scene.component_items.pop(cid, None)
-            
-            # MAJ-05: Retirer du modèle de projet
-            main_win = self.scene.views()[0].window()
-            if hasattr(main_win, "current_project"):
+            if cid in ("esp32", "board"):
+                self.scene.component_items.pop("esp32", None)
+                self.scene.component_items.pop("board", None)
+            elif cid in ("arduino_uno", "uno"):
+                self.scene.component_items.pop("arduino_uno", None)
+                self.scene.component_items.pop("uno", None)
+
+            if it == getattr(self.scene, "board_item", None) or cid in ("esp32", "board", "arduino_uno", "uno"):
+                self.scene.board_item = None
+                if hasattr(self.scene, "usb_cable_item") and self.scene.usb_cable_item:
+                    self.scene.usb_cable_item.set_connected(False)
+                    self.scene.usb_cable_item.setVisible(False)
+            if it == getattr(self.scene, "breadboard_item", None) or str(cid).startswith("breadboard"):
+                self.scene.breadboard_item = None
+
+            # Retirer du modèle de projet
+            if main_win and hasattr(main_win, "current_project") and main_win.current_project:
                 for c in list(main_win.current_project.components):
-                    if c.id == cid:
+                    if c.id == cid or (cid in ("esp32", "board", "arduino_uno", "uno") and c.type in ("esp32", "board", "arduino_uno", "uno")):
                         main_win.current_project.components.remove(c)
 
         # Retirer les connexions du modèle
-        main_win = self.scene.views()[0].window()
-        if hasattr(main_win, "current_project"):
+        if main_win and hasattr(main_win, "current_project") and main_win.current_project:
             main_win.current_project.connections = list(self.scene.connections)
 
         self.scene.update_all_wires()
+        if hasattr(self.scene, "re_evaluate_topology"):
+            self.scene.re_evaluate_topology()
 
     def undo(self):
+        # 1. Restaurer la breadboard d'abord si elle faisait partie des éléments supprimés
+        bb_comp_dict = next((c for c in self.items_data if c["cid"].startswith("breadboard") or hasattr(c["item"], "breadboard_id")), None)
+        if bb_comp_dict:
+            bb_it = bb_comp_dict["item"]
+            self.scene.addItem(bb_it)
+            bb_it.setPos(bb_comp_dict["pos"])
+            bb_it.setRotation(bb_comp_dict["rotation"])
+            self.scene.breadboard_item = bb_it
+            self.scene.component_items[bb_comp_dict["cid"]] = bb_it
+
         bb = self.scene.breadboard_item
+
+        # 2. Restaurer tous les autres composants
         for comp_dict in self.items_data:
             it = comp_dict["item"]
             cid = comp_dict["cid"]
+            if it == bb:
+                continue
             parent = comp_dict["parent"]
             if parent == bb and bb:
                 it.setParentItem(bb)
@@ -222,11 +287,27 @@ class DeleteItemsCommand(QUndoCommand):
             it.setPos(comp_dict["pos"])
             it.setRotation(comp_dict["rotation"])
             self.scene.component_items[cid] = it
+            if cid in ("esp32", "board"):
+                self.scene.component_items["esp32"] = it
+            elif cid in ("arduino_uno", "uno"):
+                self.scene.component_items["arduino_uno"] = it
 
             if parent == bb and comp_dict["holes"] and bb:
                 snap_res = SnapResult(local_pos=comp_dict["pos"], pin_to_hole=comp_dict["holes"])
                 self.scene._insert_component_in_breadboard(it, snap_res)
 
+            # Restaurer board_item si c'est la carte microcontrôleur
+            from .items.board_item import BoardGraphicsItem
+            from .items.arduino_uno_item import ArduinoUnoGraphicsItem
+            if isinstance(it, (BoardGraphicsItem, ArduinoUnoGraphicsItem)) or cid in ("esp32", "board", "arduino_uno", "uno"):
+                self.scene.board_item = it
+                if hasattr(self.scene, "usb_cable_item") and self.scene.usb_cable_item:
+                    self.scene._update_usb_cable_pos()
+                    is_conn = getattr(self.scene, "_is_usb_hardware_connected", False)
+                    self.scene.usb_cable_item.set_connected(is_conn)
+                    self.scene.board_item.set_powered(is_conn)
+
+        # 3. Restaurer les fils
         for w_data in self.wires_data:
             conn = ConnectionModel(
                 id=w_data.id,
@@ -240,18 +321,21 @@ class DeleteItemsCommand(QUndoCommand):
             self.scene._create_wire_item(conn)
 
         self.scene.update_all_wires()
+        if hasattr(self.scene, "re_evaluate_topology"):
+            self.scene.re_evaluate_topology()
 
-        # MAJ-05: Remettre dans le modèle de projet
-        main_win = self.scene.views()[0].window()
-        if hasattr(main_win, "current_project"):
+        # 4. Remettre dans le modèle de projet
+        views = self.scene.views()
+        main_win = views[0].window() if views else None
+        if main_win and hasattr(main_win, "current_project") and main_win.current_project:
             from ...core.models.component import ComponentModel
             for comp_dict in self.items_data:
-                # Retrouver ou recréer le modèle
                 it = comp_dict["item"]
                 cid = comp_dict["cid"]
                 c_model = comp_dict.get("model")
                 if not c_model:
-                    c_model = ComponentModel(id=cid, type="unknown", name="Restored", x=it.scenePos().x(), y=it.scenePos().y())
+                    c_type = getattr(it, "_comp_type", "unknown")
+                    c_model = ComponentModel(id=cid, type=c_type, name="Restored", x=it.scenePos().x(), y=it.scenePos().y())
                 if c_model not in main_win.current_project.components:
                     main_win.current_project.components.append(c_model)
             main_win.current_project.connections = list(self.scene.connections)

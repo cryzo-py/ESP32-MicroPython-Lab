@@ -172,7 +172,7 @@ class WelcomeWidget(QWidget):
         from ...app.i18n import tr
 
         # 2. Nom de l'application
-        self.title_label = QLabel("ESP32 MicroPython Lab")
+        self.title_label = QLabel("ESP32 & Arduino Lab")
         self.title_label.setAlignment(Qt.AlignCenter)
         center_layout.addWidget(self.title_label)
 

@@ -1,21 +1,22 @@
-# ⚡ ESP32 MicroPython Lab
+# ⚡ ESP32 & Arduino Lab
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-4.0.0-blue.svg?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg?style=for-the-badge&logo=python)
 ![Framework](https://img.shields.io/badge/GUI-PySide6%20(Qt6)-orange.svg?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/License-Proprietary%20Non--Commercial-red.svg?style=for-the-badge)
-![Status](https://img.shields.io/badge/Tests-186%20passing-brightgreen.svg?style=for-the-badge)
+![Status](https://img.shields.io/badge/Tests-520%20passing-brightgreen.svg?style=for-the-badge)
 
-**Environnement Virtuel de Simulation Électronique & de Programmation MicroPython pour ESP32**
+**Environnement Virtuel de Simulation Électronique & de Programmation Hybride MicroPython & Arduino C++**
 
 *Conçu & Développé par **Fares Bel Haj Ali***
 
 [Fonctionnalités](#-fonctionnalités-clés) •
+[Notice de Distribution](NOTICE_DISTRIBUTION_V4.md) •
+[Guide Élève](GUIDE_ELEVE.md) •
+[Guide Enseignant](GUIDE_ENSEIGNANT.md) •
 [Composants](#-bibliothèque-de-composants) •
-[Cursus Pédagogique](#-cursus-pédagogique-10-tps) •
-[Raccourcis Clavier](#-raccourcis-clavier) •
 [Installation](#-installation--démarrage) •
 [Licence](#-licence--propriété-intellectuelle)
 
@@ -25,9 +26,9 @@
 
 ## 📖 Présentation
 
-**ESP32 MicroPython Lab** est un environnement d'apprentissage interactif complet conçu pour l'enseignement et l'expérimentation de l'électronique embarquée avec le microcontrôleur ESP32 et le langage **MicroPython**.
+**ESP32 & Arduino Lab v4.0.0** est un environnement d'apprentissage interactif complet conçu pour l'enseignement et l'expérimentation de l'électronique embarquée avec les microcontrôleurs **ESP32 DevKit v1** et **Arduino Uno R3**, compatibles avec le langage **MicroPython** et le langage **Arduino (C++)**.
 
-L'application combine une **platine d'essai MB-102 ultra-réaliste**, un système de câblage Dupont interactif, un interpréteur MicroPython temps réel, une console REPL bidirectionnelle, un oscilloscope simulé, ainsi qu'un **moteur pédagogique d'évaluation automatique** comprenant 10 travaux pratiques (TPs) guidés.
+L'application combine une **platine d'essai MB-102 ultra-réaliste**, un système de câblage Dupont interactif, un double moteur de simulation (MicroPython temps réel sandboxé et Interpréteur C++ Arduino), une console REPL bidirectionnelle, un oscilloscope virtuel, ainsi qu'un **studio pédagogique d'évaluation automatique** comprenant gestion d'examens, chronomètre, critères ERC et génération de rapports.
 
 ---
 
@@ -143,17 +144,19 @@ python -m pytest tests/ -q
 
 ---
 
-## 📦 Compilation de l'Exécutable (`.exe`)
+## 📦 Compilation & Déploiement Release V4.0.0
 
-Pour compiler l'application sous Windows en exécutable autonome sans invite de commande :
+Pour compiler les deux éditions autonomes Windows (Élève & Teacher Studio) et générer les installeurs Inno Setup :
 
-```bash
-python build_exe.py
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_release_v4.ps1
 ```
-Le binaire final est produit dans le répertoire `dist/ESP32_Lab/ESP32_Lab.exe`.
 
-Pour générer l'installeur d'installation complet Windows :
-- Ouvrez `installer.iss` dans **Inno Setup Compiler 6** et cliquez sur **Compile** (ou lancez `iscc installer.iss`).
+Les exécutables autonomes sont produits dans :
+- `dist/ESP32_Arduino_Lab_Student/ESP32_Arduino_Lab_Student.exe`
+- `dist/ESP32_Arduino_Lab_Teacher_Studio/ESP32_Arduino_Lab_Teacher_Studio.exe`
+
+Pour la notice détaillée de distribution et les instructions de déploiement en réseau scolaire, consultez [NOTICE_DISTRIBUTION_V4.md](NOTICE_DISTRIBUTION_V4.md).
 
 ---
 

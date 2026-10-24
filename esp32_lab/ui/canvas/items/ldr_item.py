@@ -48,22 +48,30 @@ class LDRGraphicsItem(QGraphicsObject):
         return max(200.0, 500_000.0 / (self.lux + 5.0))
 
     def boundingRect(self) -> QRectF:
-        return QRectF(-16, -24, 32, 48)
+        return QRectF(-25, -14, 32, 28)
 
     def paint(self, painter: QPainter, option, widget=None):
         painter.setRenderHint(QPainter.Antialiasing)
 
-        # 1. Pattes métalliques étamées sous le disque
-        lead_pen = QPen(QColor("#cbd5e1"), 2.0, Qt.SolidLine, Qt.RoundCap)
+        # 1. Pattes métalliques étamées émergeant de l'arrière du disque vers les broches (0, -8.5) et (0, 8.5)
+        lead_pen = QPen(QColor("#cbd5e1"), 2.2, Qt.SolidLine, Qt.RoundCap)
         painter.setPen(lead_pen)
-        if not self.pin1.is_inserted:
-            painter.drawLine(QPointF(0, -6), QPointF(0, -8.5))
-        if not self.pin2.is_inserted:
-            painter.drawLine(QPointF(0, 6), QPointF(0, 8.5))
+        painter.setBrush(Qt.NoBrush)
 
-        # 2. Base céramique beige/orangée (disque principal)
-        disc_rect = QRectF(-12, -12, 24, 24)
-        base_grad = QRadialGradient(0, -2, 14)
+        path_lead1 = QPainterPath()
+        path_lead1.moveTo(-6, -3)
+        path_lead1.cubicTo(-3, -3, 0, -5, 0, -8.5)
+        painter.drawPath(path_lead1)
+
+        path_lead2 = QPainterPath()
+        path_lead2.moveTo(-6, 3)
+        path_lead2.cubicTo(-3, 3, 0, 5, 0, 8.5)
+        painter.drawPath(path_lead2)
+
+        # 2. Base céramique beige/orangée (disque décalé à gauche pour dégager les broches)
+        cx, cy = -12.0, 0.0
+        disc_rect = QRectF(cx - 9, cy - 9, 18, 18)
+        base_grad = QRadialGradient(cx, cy - 2, 11)
         base_grad.setColorAt(0.0, QColor("#fed7aa"))
         base_grad.setColorAt(0.7, QColor("#fb923c"))
         base_grad.setColorAt(1.0, QColor("#c2410c"))
@@ -77,30 +85,30 @@ class LDRGraphicsItem(QGraphicsObject):
         painter.setPen(cds_pen)
         
         path = QPainterPath()
-        path.moveTo(-7, -6)
-        path.lineTo(6, -6)
-        path.lineTo(6, -2)
-        path.lineTo(-6, -2)
-        path.lineTo(-6, 2)
-        path.lineTo(6, 2)
-        path.lineTo(6, 6)
-        path.lineTo(-7, 6)
+        path.moveTo(cx - 5, cy - 4.5)
+        path.lineTo(cx + 4.5, cy - 4.5)
+        path.lineTo(cx + 4.5, cy - 1.5)
+        path.lineTo(cx - 4.5, cy - 1.5)
+        path.lineTo(cx - 4.5, cy + 1.5)
+        path.lineTo(cx + 4.5, cy + 1.5)
+        path.lineTo(cx + 4.5, cy + 4.5)
+        path.lineTo(cx - 5, cy + 4.5)
         painter.drawPath(path)
 
         # 4. Traces conductrices argentées des électrodes
         silver_pen = QPen(QColor("#e2e8f0"), 1.0, Qt.SolidLine, Qt.RoundCap)
         painter.setPen(silver_pen)
-        painter.drawLine(QPointF(-8, -6), QPointF(-4, -6))
-        painter.drawLine(QPointF(-8, 6), QPointF(-4, 6))
+        painter.drawLine(QPointF(cx - 6, cy - 4.5), QPointF(cx - 3, cy - 4.5))
+        painter.drawLine(QPointF(cx - 6, cy + 4.5), QPointF(cx - 3, cy + 4.5))
 
         # 5. Dôme de protection translucide (reflet spéculaire)
-        shine_grad = QLinearGradient(-8, -10, 4, 4)
+        shine_grad = QLinearGradient(cx - 6, cy - 8, cx + 3, cy + 3)
         shine_grad.setColorAt(0.0, QColor(255, 255, 255, 140))
         shine_grad.setColorAt(0.4, QColor(255, 255, 255, 40))
         shine_grad.setColorAt(1.0, QColor(255, 255, 255, 0))
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(shine_grad))
-        painter.drawEllipse(QRectF(-10, -10, 20, 14))
+        painter.drawEllipse(QRectF(cx - 7, cy - 7, 14, 10))
 
         # 6. Indicateur de sélection
         if self.isSelected():

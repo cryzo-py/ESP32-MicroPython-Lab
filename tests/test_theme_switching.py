@@ -62,3 +62,37 @@ def test_main_window_theme_switching(app):
     assert settings.value("theme") == "dark"
 
     window.close()
+
+def test_dual_editors_theme_synchronization(app):
+    """Vérifie que py_editor et arduino_editor restent synchronisés avec le thème actif."""
+    window = MainWindow()
+
+    # 1. Thème Light alors que tab 0 (py_editor) est actif
+    window.tabs.setCurrentIndex(0)
+    window._set_app_theme("light")
+    assert window.py_editor.theme_name == "light"
+    assert window.arduino_editor.theme_name == "light"
+
+    # Bascule vers tab 1 (arduino_editor)
+    window.tabs.setCurrentIndex(1)
+    assert window.arduino_editor.theme_name == "light"
+    assert window.py_editor.theme_name == "light"
+
+    # 2. Thème Dark alors que tab 1 (arduino_editor) est actif
+    window._set_app_theme("dark")
+    assert window.py_editor.theme_name == "dark"
+    assert window.arduino_editor.theme_name == "dark"
+
+    # Bascule vers tab 0
+    window.tabs.setCurrentIndex(0)
+    assert window.py_editor.theme_name == "dark"
+    assert window.arduino_editor.theme_name == "dark"
+
+    # 3. Bascule vers Arduino Uno (tab 1 forcé)
+    window._switch_board("arduino_uno")
+    assert window.tabs.currentIndex() == 1
+    assert window.arduino_editor.theme_name == "dark"
+    assert window.py_editor.theme_name == "dark"
+
+    window.close()
+

@@ -108,11 +108,21 @@ class SlideSwitchGraphicsItem(QGraphicsObject):
         painter.drawLine(QPointF(slider_x - 2, -9), QPointF(slider_x + 2, -9))
         painter.drawLine(QPointF(slider_x - 2, -6), QPointF(slider_x + 2, -6))
 
-        # 3. Broches métalliques étamées descendantes
-        lead_pen = QPen(QColor("#cbd5e1"), 2.0, Qt.SolidLine, Qt.RoundCap)
+        # 3. Broches métalliques étamées descendantes (vers y = 12.0)
+        lead_pen = QPen(QColor("#cbd5e1"), 2.2, Qt.SolidLine, Qt.RoundCap)
         painter.setPen(lead_pen)
         for x_pin in (-8.5, 0, 8.5):
-            painter.drawLine(QPointF(x_pin, 10), QPointF(x_pin, 12))
+            painter.drawLine(QPointF(x_pin, 9.0), QPointF(x_pin, 12.0))
+
+        # Sérigraphie discrète des broches sur le boîtier métallique (1, C, 2)
+        painter.setPen(QPen(QColor("#475569"), 1.0))
+        f = painter.font()
+        f.setPixelSize(6)
+        f.setBold(True)
+        painter.setFont(f)
+        painter.drawText(QRectF(-12.5, 2, 8, 7), Qt.AlignCenter, "1")
+        painter.drawText(QRectF(-4, 2, 8, 7), Qt.AlignCenter, "C")
+        painter.drawText(QRectF(4.5, 2, 8, 7), Qt.AlignCenter, "2")
 
         # 4. Sélection
         if self.isSelected():

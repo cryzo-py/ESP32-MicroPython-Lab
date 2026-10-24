@@ -14,14 +14,23 @@ from .runtime import MicroPythonRuntime
 
 
 class SimulationEngine(QObject):
-    def __init__(self):
+    def __init__(self, board_profile=None):
         super().__init__()
-        self.gpio_manager = GPIOManager()
-        self.adc_manager = ADCManager(self.gpio_manager)
-        self.pwm_manager = PWMManager(self.gpio_manager)
+        self.board_profile = board_profile
+        self.gpio_manager = GPIOManager(board_profile=board_profile)
+        self.adc_manager = ADCManager(self.gpio_manager, board_profile=board_profile)
+        self.pwm_manager = PWMManager(self.gpio_manager, board_profile=board_profile)
         self.i2c_manager = I2CManager()
         self.spi_manager = SPIManager(self.gpio_manager)
         self.runtime = MicroPythonRuntime(self.gpio_manager)
+        from .arduino.runtime import ArduinoRuntime
+        self.arduino_runtime = ArduinoRuntime(
+            gpio_manager=self.gpio_manager,
+            adc_manager=self.adc_manager,
+            pwm_manager=self.pwm_manager,
+            board_profile=board_profile
+        )
+        self.active_runtime = self.runtime
 
         # Phase 5.11/5.12 — Shared RuntimeCallbackQueue (IRQ + Timer unified)
         from .callback_queue import RuntimeCallbackQueue
@@ -67,9 +76,26 @@ class SimulationEngine(QObject):
         self.runtime.simulation_started.connect(self.event_bus.simulation_started)
         self.runtime.simulation_finished.connect(self.event_bus.simulation_stopped)
 
+        self.arduino_runtime.output_received.connect(self.event_bus.serial_data_received)
+        self.arduino_runtime.error_occurred.connect(self.event_bus.simulation_error)
+        self.arduino_runtime.simulation_started.connect(self.event_bus.simulation_started)
+        self.arduino_runtime.simulation_finished.connect(self.event_bus.simulation_stopped)
+
         # Écouter les requêtes de l'UI via l'EventBus
         self.event_bus.request_simulation_stop.connect(self.stop)
         self.event_bus.request_simulation_reset.connect(self.reset)
+
+    def set_board_profile(self, profile):
+        """Met à jour le profil de carte actif dans tous les gestionnaires matériels."""
+        self.board_profile = profile
+        if hasattr(self, "gpio_manager") and self.gpio_manager:
+            self.gpio_manager.set_board_profile(profile)
+        if hasattr(self, "adc_manager") and self.adc_manager:
+            self.adc_manager.set_board_profile(profile)
+        if hasattr(self, "pwm_manager") and self.pwm_manager:
+            self.pwm_manager.set_board_profile(profile)
+        if hasattr(self, "arduino_runtime") and self.arduino_runtime:
+            self.arduino_runtime.set_board_profile(profile)
 
     def _on_gpio_changed(self, pin: int, value: int):
         self.event_bus.gpio_changed.emit(pin, value)
@@ -130,13 +156,23 @@ class SimulationEngine(QObject):
                     self.gpio_manager._notify(pin_id, resolved_val)
                     self.gpio_manager._values[pin_id] = resolved_val
 
-    def start(self, code: str):
-        self.event_bus.serial_data_received.emit(">>> [SIMULATION DÉMARRÉE]\n")
-        self.runtime.start(code)
+    def start(self, code: str, language: str = "micropython"):
+        lang = language.lower() if language else "micropython"
+        is_arduino = lang in ("c", "cpp", "c++", "arduino", "ino") or ("void setup" in code and "void loop" in code)
+        if is_arduino:
+            self.active_runtime = self.arduino_runtime
+            self.event_bus.serial_data_received.emit(">>> [SIMULATION ARDUINO C++ DÉMARRÉE]\n")
+        else:
+            self.active_runtime = self.runtime
+            self.event_bus.serial_data_received.emit(">>> [SIMULATION DÉMARRÉE]\n")
+
+        self.active_runtime.start(code)
 
     def stop(self):
         if self.runtime.is_running():
             self.runtime.stop()
+        if self.arduino_runtime.is_running():
+            self.arduino_runtime.stop()
 
     def reset(self):
         self.stop()
@@ -155,4 +191,4 @@ class SimulationEngine(QObject):
         self.event_bus.serial_data_received.emit(">>> [SIMULATION RÉINITIALISÉE]\n")
 
     def is_running(self) -> bool:
-        return self.runtime.is_running()
+        return self.runtime.is_running() or self.arduino_runtime.is_running()

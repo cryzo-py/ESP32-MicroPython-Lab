@@ -5,6 +5,7 @@ Affichage des cours théoriques officiels, des leçons, théories, défis et mot
 
 from PySide6.QtCore import QSettings, Qt, Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
@@ -106,8 +107,10 @@ class CoursesDialog(QDialog):
 
         self.current_project = current_project
         self.lessons = get_course_curriculum()
+        self.filtered_lessons = list(self.lessons)
         self.theory_chapters = get_official_course_curriculum()
-        self.evaluator = ExerciseEvaluator()
+        net_resolver = getattr(parent.circuit_scene.topology, "net_resolver", None) if parent and hasattr(parent, "circuit_scene") and hasattr(parent.circuit_scene, "topology") else None
+        self.evaluator = ExerciseEvaluator(net_resolver=net_resolver)
         self.last_eval_result = None
 
         main_layout = QVBoxLayout(self)
@@ -119,9 +122,9 @@ class CoursesDialog(QDialog):
         header_text_box = QVBoxLayout()
         header_text_box.setSpacing(2)
 
-        header_title = QLabel("🎓 Cursus Pédagogique Officiel : Robotique & ESP32 MicroPython")
+        header_title = QLabel("🎓 Cursus Pédagogique Officiel : Robotique, ESP32 & Arduino")
         header_title.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {header_fg}; background: transparent;")
-        header_sub = QLabel("Formation théorique complète conforme aux directives officielles et travaux pratiques interactifs.")
+        header_sub = QLabel("Formation théorique complète conforme aux directives officielles et travaux pratiques interactifs (MicroPython & C++).")
         header_sub.setStyleSheet(f"font-size: 12px; color: {sub_fg}; background: transparent;")
         header_text_box.addWidget(header_title)
         header_text_box.addWidget(header_sub)
@@ -140,7 +143,7 @@ class CoursesDialog(QDialog):
         # 2. Onglet Travaux Pratiques & Évaluation
         self.tab_tps = QWidget()
         self._setup_tps_tab(self.tab_tps, list_bg, list_border, list_item_border, list_item_hover, fg_dlg, sec_title_fg, challenge_bg, challenge_border, challenge_fg, eval_bg, eval_border, eval_header)
-        self.tabs.addTab(self.tab_tps, "🛠️ Travaux Pratiques & Évaluation (11 TPs)")
+        self.tabs.addTab(self.tab_tps, f"🛠️ Travaux Pratiques & Évaluation ({len(self.lessons)} TPs)")
 
         main_layout.addWidget(self.tabs, 1)
 
@@ -366,9 +369,31 @@ class CoursesDialog(QDialog):
         left_layout.setContentsMargins(0, 0, 4, 0)
         left_layout.setSpacing(6)
 
-        lbl_catalog = QLabel("📚 Liste des 11 Travaux Pratiques")
+        lbl_catalog = QLabel("📚 Travaux Pratiques")
         lbl_catalog.setStyleSheet(f"font-weight: 700; color: {sec_title_fg}; font-size: 13px; background: transparent;")
         left_layout.addWidget(lbl_catalog)
+
+        self.combo_tp_filter = QComboBox()
+        self.combo_tp_filter.addItems([
+            "🌟 Tous les TPs",
+            "⚡ Arduino Uno C++",
+            "🐍 ESP32 MicroPython",
+        ])
+        combo_bg = "#f8fafc" if self.is_light else "#1e293b"
+        combo_border = "#cbd5e1" if self.is_light else "#334155"
+        self.combo_tp_filter.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {combo_bg};
+                color: {fg_dlg};
+                border: 1px solid {combo_border};
+                border-radius: 6px;
+                padding: 4px 8px;
+                font-size: 12px;
+                font-weight: 600;
+            }}
+        """)
+        self.combo_tp_filter.currentIndexChanged.connect(self._on_tp_filter_changed)
+        left_layout.addWidget(self.combo_tp_filter)
 
         self.list_widget = QListWidget()
         self.list_widget.setStyleSheet(f"""
@@ -628,10 +653,10 @@ class CoursesDialog(QDialog):
         self._populate_lesson_list()
 
     def _select_lesson(self, row: int):
-        if row < 0 or row >= len(self.lessons):
+        if row < 0 or row >= len(self.filtered_lessons):
             return
 
-        lesson = self.lessons[row]
+        lesson = self.filtered_lessons[row]
         self.lbl_chapter.setText(lesson.chapter_title)
         self.lbl_title.setText(lesson.title)
         self.lbl_summary.setText(lesson.summary)
@@ -643,6 +668,18 @@ class CoursesDialog(QDialog):
             item = self.comp_badges_layout.takeAt(1)
             if item.widget():
                 item.widget().deleteLater()
+
+        is_uno = (getattr(lesson, "board_id", "") == "arduino_uno" or getattr(lesson, "language", "") in ("arduino_c", "arduino", "c++", "cpp"))
+        badge_platform = QLabel("⚡ ARDUINO UNO (C++)" if is_uno else "🐍 ESP32 (MICROPYTHON)")
+        badge_platform.setStyleSheet(f"""
+            background-color: {'rgba(14, 165, 233, 0.15)' if is_uno else 'rgba(16, 185, 129, 0.15)'};
+            color: {'#0284c7' if is_uno else '#059669'};
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 4px;
+        """)
+        self.comp_badges_layout.addWidget(badge_platform)
 
         badge_bg = "#e0f2fe" if self.is_light else "#1e293b"
         badge_fg = "#0369a1" if self.is_light else "#38bdf8"
@@ -669,18 +706,18 @@ class CoursesDialog(QDialog):
 
     def _load_current_tp(self):
         row = self.list_widget.currentRow()
-        if 0 <= row < len(self.lessons):
-            lesson = self.lessons[row]
+        if 0 <= row < len(self.filtered_lessons):
+            lesson = self.filtered_lessons[row]
             if lesson.starter_project:
                 self.lesson_loaded.emit(lesson.starter_project)
                 self.accept()
 
     def _run_evaluation(self):
         row = self.list_widget.currentRow()
-        if row < 0 or row >= len(self.lessons):
+        if row < 0 or row >= len(self.filtered_lessons):
             return
 
-        lesson = self.lessons[row]
+        lesson = self.filtered_lessons[row]
         result: EvaluationResult = self.evaluator.evaluate(lesson, self.current_project)
 
         prog_bg = "#e2e8f0" if self.is_light else "#1e293b"
@@ -743,10 +780,10 @@ class CoursesDialog(QDialog):
 
     def _export_report(self):
         row = self.list_widget.currentRow()
-        if row < 0 or row >= len(self.lessons):
+        if row < 0 or row >= len(self.filtered_lessons):
             return
 
-        lesson = self.lessons[row]
+        lesson = self.filtered_lessons[row]
         if self.last_eval_result is None or self.last_eval_result.lesson_id != lesson.id:
             self._run_evaluation()
 
@@ -784,29 +821,52 @@ class CoursesDialog(QDialog):
                 f"Impossible d'enregistrer le rapport : {e}"
             )
 
+    def _on_tp_filter_changed(self, index: int):
+        self._populate_lesson_list()
+
     def _populate_lesson_list(self):
         try:
             completed_ids = set(get_progress_db().get_completed_lessons())
         except Exception:
             completed_ids = set()
 
-        if self.list_widget.count() == len(self.lessons):
-            for i, lesson in enumerate(self.lessons):
+        filter_idx = self.combo_tp_filter.currentIndex() if hasattr(self, "combo_tp_filter") else 0
+        target_board = None
+        if filter_idx == 1:
+            target_board = "arduino_uno"
+        elif filter_idx == 2:
+            target_board = "esp32_wroom_32"
+
+        self.filtered_lessons = [
+            l for l in self.lessons
+            if target_board is None or getattr(l, "board_id", "esp32_wroom_32") == target_board
+        ]
+
+        if self.list_widget.count() == len(self.filtered_lessons):
+            for i, lesson in enumerate(self.filtered_lessons):
                 status_icon = "✅ " if lesson.id in completed_ids else "⭕ "
+                prefix = "⚡ " if getattr(lesson, "board_id", "") == "arduino_uno" else "🐍 "
                 item = self.list_widget.item(i)
                 if item:
-                    item.setText(f"{status_icon}Ch.{lesson.chapter_num} : {lesson.title}")
+                    item.setText(f"{status_icon}{prefix}Ch.{lesson.chapter_num} : {lesson.title}")
                     if lesson.id in completed_ids:
                         item.setForeground(Qt.green)
-        else:
-            self.list_widget.blockSignals(True)
-            self.list_widget.clear()
-            for lesson in self.lessons:
-                status_icon = "✅ " if lesson.id in completed_ids else "⭕ "
-                item = QListWidgetItem(f"{status_icon}Ch.{lesson.chapter_num} : {lesson.title}")
-                item.setToolTip(lesson.summary)
-                if lesson.id in completed_ids:
-                    item.setForeground(Qt.green)
-                self.list_widget.addItem(item)
-            self.list_widget.blockSignals(False)
-            self.list_widget.setCurrentRow(0)
+            return
+
+        prev_row = self.list_widget.currentRow()
+        self.list_widget.blockSignals(True)
+        self.list_widget.clear()
+        for lesson in self.filtered_lessons:
+            status_icon = "✅ " if lesson.id in completed_ids else "⭕ "
+            prefix = "⚡ " if getattr(lesson, "board_id", "") == "arduino_uno" else "🐍 "
+            item = QListWidgetItem(f"{status_icon}{prefix}Ch.{lesson.chapter_num} : {lesson.title}")
+            item.setToolTip(lesson.summary)
+            if lesson.id in completed_ids:
+                item.setForeground(Qt.green)
+            self.list_widget.addItem(item)
+        self.list_widget.blockSignals(False)
+
+        new_row = prev_row if (0 <= prev_row < self.list_widget.count()) else 0
+        if self.list_widget.count() > 0:
+            self.list_widget.setCurrentRow(new_row)
+            self._select_lesson(new_row)

@@ -3,6 +3,8 @@ Scène graphique interactive (CircuitScene) gérant les composants, le câblage,
 la platine d'expérimentation (Breadboard) et la simulation physique en temps réel.
 """
 
+from typing import Optional, Set, Tuple, Dict, List
+
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsScene
@@ -76,6 +78,7 @@ class CircuitScene(QGraphicsScene):
         self._temp_wire: WireGraphicsItem | None = None
 
         self.theme_name = "dark"
+        self._gpio_states: dict[int, int] = {}
 
         # Écoute des événements GPIO et PWM
         self.event_bus.gpio_changed.connect(self._on_gpio_changed)
@@ -189,19 +192,37 @@ class CircuitScene(QGraphicsScene):
         self.device_models.clear()
         self.interaction_policy.load_from_project(project)
 
-        # 1. Carte ESP32 si présente dans le projet
-        board_comp = next((c for c in project.components if c.type in ("esp32", "board")), None)
-        if board_comp:
-            self.board_item = BoardGraphicsItem(board_id="esp32")
-            self.board_item.setPos(board_comp.x, board_comp.y)
+        # 1. Carte microcontrôleur (ESP32 ou Arduino Uno) si présente dans le projet
+        board_comp = next((c for c in project.components if c.type in ("esp32", "board", "arduino_uno", "uno")), None)
+        active_board_id = getattr(project, "board_id", "esp32_wroom_32")
+        is_uno = (board_comp and board_comp.type in ("arduino_uno", "uno")) or active_board_id == "arduino_uno"
+
+        if is_uno:
+            from esp32_lab.ui.canvas.items.arduino_uno_item import ArduinoUnoGraphicsItem
+            b_id = board_comp.id if board_comp else "arduino_uno"
+            self.board_item = ArduinoUnoGraphicsItem(board_id=b_id)
+            self.board_item.component_id = b_id
+            pos_x = board_comp.x if board_comp else 60
+            pos_y = board_comp.y if board_comp else 60
+            self.board_item.setPos(pos_x, pos_y)
+            if board_comp and getattr(board_comp, "rotation", 0.0):
+                self.board_item.setRotation(float(board_comp.rotation))
             self.addItem(self.board_item)
-            self.component_items["esp32"] = self.board_item
+            self.component_items[b_id] = self.board_item
+            self.component_items["arduino_uno"] = self.board_item
             self._connect_anchors(self.board_item)
-        elif getattr(project, "board_id", None):
-            # Projet avec board_id : instancier la carte ESP32
-            self.board_item = BoardGraphicsItem(board_id="esp32")
-            self.board_item.setPos(60, 60)
+        elif board_comp or active_board_id:
+            from esp32_lab.ui.canvas.items.board_item import BoardGraphicsItem
+            b_id = board_comp.id if board_comp else "esp32"
+            self.board_item = BoardGraphicsItem(board_id=b_id)
+            self.board_item.component_id = b_id
+            pos_x = board_comp.x if board_comp else 60
+            pos_y = board_comp.y if board_comp else 60
+            self.board_item.setPos(pos_x, pos_y)
+            if board_comp and getattr(board_comp, "rotation", 0.0):
+                self.board_item.setRotation(float(board_comp.rotation))
             self.addItem(self.board_item)
+            self.component_items[b_id] = self.board_item
             self.component_items["esp32"] = self.board_item
             self._connect_anchors(self.board_item)
         else:
@@ -221,6 +242,8 @@ class CircuitScene(QGraphicsScene):
         if bb_comp:
             item = BreadboardGraphicsItem(bb_comp.id)
             item.setPos(bb_comp.x, bb_comp.y)
+            if getattr(bb_comp, "rotation", 0.0):
+                item.setRotation(float(bb_comp.rotation))
             self.addItem(item)
             self.breadboard_item = item
             self.component_items[bb_comp.id] = item
@@ -228,9 +251,10 @@ class CircuitScene(QGraphicsScene):
         else:
             self.breadboard_item = None
 
-        # 3. Composants du projet
+        # 3. Composants secondaires du projet (LEDs, résistances, capteurs...)
+        board_types = ("esp32", "board", "arduino_uno", "uno", "arduino")
         for comp in project.components:
-            if comp.type == "breadboard":
+            if comp.type == "breadboard" or str(comp.type).lower() in board_types:
                 continue
 
             item = self._create_component_item(comp.type, comp.id)
@@ -418,7 +442,14 @@ class CircuitScene(QGraphicsScene):
         base = base_type.lower()
         if base in ("esp32", "board"):
             from esp32_lab.ui.canvas.items.board_item import BoardGraphicsItem
-            return BoardGraphicsItem(board_id="esp32")
+            item = BoardGraphicsItem(board_id="esp32")
+            item.component_id = comp_id
+            return item
+        elif base in ("arduino_uno", "uno", "arduino"):
+            from esp32_lab.ui.canvas.items.arduino_uno_item import ArduinoUnoGraphicsItem
+            item = ArduinoUnoGraphicsItem(board_id="arduino_uno")
+            item.component_id = comp_id
+            return item
         elif base == "breadboard":
             return BreadboardGraphicsItem(comp_id)
         elif base == "led":
@@ -469,7 +500,9 @@ class CircuitScene(QGraphicsScene):
         elif base in ("joystick", "thumbstick", "ky023"):
             return JoystickGraphicsItem(comp_id, x_val=2048, y_val=2048)
         elif base in ("switch", "slide_switch", "slideswitch"):
-            return SlideSwitchGraphicsItem(comp_id, is_on=False)
+            sw = SlideSwitchGraphicsItem(comp_id, is_on=False)
+            sw.state_changed.connect(lambda _: self.re_evaluate_topology())
+            return sw
         elif base in ("bme280", "bmp280"):
             from esp32_lab.simulator.devices.bme280 import BME280Model
             self.device_models[comp_id] = BME280Model(comp_id)
@@ -497,22 +530,51 @@ class CircuitScene(QGraphicsScene):
     def add_component(self, comp_type: str, pos: QPointF | None = None) -> QGraphicsItem:
         """Ajoute un nouveau composant sur la scene"""
         base = comp_type.lower()
-        idx = 1
-        while f"{base}_{idx}" in self.component_items:
-            idx += 1
-        comp_id = f"{base}_{idx}"
+        if base in ("esp32", "board"):
+            if "esp32" not in self.component_items and not self.board_item:
+                comp_id = "esp32"
+            else:
+                idx = 1
+                while f"esp32_{idx}" in self.component_items:
+                    idx += 1
+                comp_id = f"esp32_{idx}"
+        elif base in ("arduino_uno", "uno", "arduino"):
+            if "arduino_uno" not in self.component_items and not self.board_item:
+                comp_id = "arduino_uno"
+            else:
+                idx = 1
+                while f"arduino_uno_{idx}" in self.component_items:
+                    idx += 1
+                comp_id = f"arduino_uno_{idx}"
+        elif base.startswith("breadboard") or base == "breadboard":
+            if "breadboard_1" not in self.component_items and not self.breadboard_item:
+                comp_id = "breadboard_1"
+            else:
+                idx = 1
+                while f"breadboard_{idx}" in self.component_items:
+                    idx += 1
+                comp_id = f"breadboard_{idx}"
+        else:
+            idx = 1
+            while f"{base}_{idx}" in self.component_items:
+                idx += 1
+            comp_id = f"{base}_{idx}"
 
         item = self._create_component_item(base, comp_id)
-        if base in ("esp32", "board"):
+        if base in ("esp32", "board", "arduino_uno", "uno", "arduino"):
             self.board_item = item
-        elif base == "breadboard":
+        elif base.startswith("breadboard") or base == "breadboard":
             self.breadboard_item = item
 
         # Position par défaut si non spécifiée
         if pos is None:
-            if self.breadboard_item and base != "breadboard":
+            if base in ("esp32", "board", "arduino_uno", "uno", "arduino"):
+                pos = QPointF(60, 60)
+            elif base.startswith("breadboard") or base == "breadboard":
+                pos = QPointF(280, 50)
+            elif self.breadboard_item:
                 bb_pos = self.breadboard_item.pos()
-                pos = QPointF(bb_pos.x() + 50, bb_pos.y() + 60 + (idx - 1) * 30)
+                pos = QPointF(bb_pos.x() + 50, bb_pos.y() + 60)
             else:
                 pos = QPointF(200, 150)
 
@@ -531,6 +593,14 @@ class CircuitScene(QGraphicsScene):
         else:
             item.setPos(pos)
             self.addItem(item)
+
+        if base in ("esp32", "board", "arduino_uno", "uno", "arduino"):
+            if hasattr(self, "usb_cable_item") and self.usb_cable_item:
+                self.usb_cable_item.setVisible(True)
+                self._update_usb_cable_pos()
+                is_conn = getattr(self, "_is_usb_hardware_connected", False)
+                self.usb_cable_item.set_connected(is_conn)
+                self.board_item.set_powered(is_conn)
 
         self.component_items[comp_id] = item
         self._connect_anchors(item)
@@ -697,7 +767,7 @@ class CircuitScene(QGraphicsScene):
 
     def _find_pin_anchor(self, component_id: str, pin_id: str) -> PinAnchorItem | None:
         try:
-            if component_id == "esp32" and self.board_item:
+            if component_id in ("esp32", "arduino_uno", "uno", "board") and self.board_item:
                 anchor = self.board_item.get_pin_anchor(pin_id)
                 if anchor:
                     return anchor
@@ -812,14 +882,21 @@ class CircuitScene(QGraphicsScene):
 
     def delete_selected_items(self):
         items = []
-        for item in self.selectedItems():
+        for raw_item in self.selectedItems():
+            item = raw_item
+            while item and not hasattr(item, "component_id") and not hasattr(item, "connection_id"):
+                item = item.parentItem()
+            if not item:
+                item = raw_item
+
             comp_id = getattr(item, 'component_id', None)
             conn_id = getattr(item, 'connection_id', None)
             if comp_id and not self.interaction_policy.can_delete(comp_id):
                 continue
             if conn_id and not self.interaction_policy.can_delete(conn_id):
                 continue
-            items.append(item)
+            if item not in items:
+                items.append(item)
             
         if not items:
             return
@@ -830,24 +907,76 @@ class CircuitScene(QGraphicsScene):
             self._execute_delete_items(items)
 
     def _execute_delete_items(self, items: list):
-        for item in items:
+        expanded_items = list(items)
+        for it in items:
+            if hasattr(it, "component_id") and (it == self.breadboard_item or str(getattr(it, "component_id", "")).startswith("breadboard")):
+                for child in it.childItems():
+                    child_cid = getattr(child, "component_id", None)
+                    if child_cid and child_cid in self.component_items and child not in expanded_items:
+                        expanded_items.append(child)
+
+        views = self.views()
+        main_win = views[0].window() if views else None
+
+        for item in expanded_items:
             if isinstance(item, WireGraphicsItem):
                 conn_id = item.connection_id
                 self.removeItem(item)
                 self.wire_items.pop(conn_id, None)
                 self.connections = [c for c in self.connections if c.id != conn_id]
-            elif hasattr(item, "component_id"):
+            elif hasattr(item, "component_id") or item == self.board_item or item == self.breadboard_item:
+                comp_id = getattr(item, "component_id", None)
+                if not comp_id:
+                    if item == self.board_item:
+                        comp_id = getattr(self.board_item, "board_id", "esp32")
+                    elif item == self.breadboard_item:
+                        comp_id = getattr(self.breadboard_item, "breadboard_id", "breadboard_1")
+
                 self._remove_component_from_breadboard(item)
-                comp_id = item.component_id
-                to_remove = [c for c in self.connections if c.from_component == comp_id or c.to_component == comp_id]
-                for c in to_remove:
-                    w = self.wire_items.pop(c.id, None)
-                    if w:
-                        self.removeItem(w)
-                    if c in self.connections:
-                        self.connections.remove(c)
-                self.removeItem(item)
-                self.component_items.pop(comp_id, None)
+
+                if comp_id:
+                    aliases = {comp_id}
+                    if comp_id in ("esp32", "board"):
+                        aliases.update({"esp32", "board"})
+                    elif comp_id in ("arduino_uno", "uno"):
+                        aliases.update({"arduino_uno", "uno"})
+
+                    to_remove = [c for c in self.connections if c.from_component in aliases or c.to_component in aliases]
+                    for c in to_remove:
+                        w = self.wire_items.pop(c.id, None)
+                        if w:
+                            self.removeItem(w)
+                        if c in self.connections:
+                            self.connections.remove(c)
+
+                if item.scene() == self:
+                    self.removeItem(item)
+
+                if comp_id:
+                    self.component_items.pop(comp_id, None)
+                    if comp_id in ("esp32", "board"):
+                        self.component_items.pop("esp32", None)
+                        self.component_items.pop("board", None)
+                    elif comp_id in ("arduino_uno", "uno"):
+                        self.component_items.pop("arduino_uno", None)
+                        self.component_items.pop("uno", None)
+
+                if item == self.board_item or comp_id in ("esp32", "board", "arduino_uno", "uno"):
+                    self.board_item = None
+                    if hasattr(self, "usb_cable_item") and self.usb_cable_item:
+                        self.usb_cable_item.set_connected(False)
+                        self.usb_cable_item.setVisible(False)
+                if item == self.breadboard_item or str(comp_id).startswith("breadboard"):
+                    self.breadboard_item = None
+
+                if main_win and hasattr(main_win, "current_project") and main_win.current_project:
+                    for c in list(main_win.current_project.components):
+                        if c.id == comp_id or (comp_id in ("esp32", "board", "arduino_uno", "uno") and c.type in ("esp32", "board", "arduino_uno", "uno")):
+                            main_win.current_project.components.remove(c)
+
+        if main_win and hasattr(main_win, "current_project") and main_win.current_project:
+            main_win.current_project.connections = list(self.connections)
+
         self.update_all_wires()
         self.re_evaluate_topology()
         self.is_modified = True
@@ -868,6 +997,13 @@ class CircuitScene(QGraphicsScene):
         for comp_id, item in self.component_items.items():
             if isinstance(item, ResistorGraphicsItem):
                 resolver.add_internal_bridge(comp_id, "pin1", "pin2")
+            elif isinstance(item, LDRGraphicsItem):
+                resolver.add_internal_bridge(comp_id, "pin1", "pin2")
+            elif isinstance(item, SlideSwitchGraphicsItem):
+                if getattr(item, "is_on", False):
+                    resolver.add_internal_bridge(comp_id, "com", "pin2")
+                else:
+                    resolver.add_internal_bridge(comp_id, "com", "pin1")
             elif isinstance(item, ButtonGraphicsItem):
                 resolver.add_internal_bridge(comp_id, "pin1", "pin2")
                 resolver.add_internal_bridge(comp_id, "pin3", "pin4")
@@ -911,36 +1047,202 @@ class CircuitScene(QGraphicsScene):
     # Propagation des signaux de simulation
     # =========================================================================
 
+    def _get_board_component_ids(self) -> set[str]:
+        ids = {"esp32", "arduino_uno", "uno", "board"}
+        if self.board_item:
+            b_id = getattr(self.board_item, "board_id", None)
+            if b_id:
+                ids.add(b_id)
+            if hasattr(self.board_item, "component_id"):
+                ids.add(self.board_item.component_id)
+        if hasattr(self, "board_profile") and self.board_profile:
+            ids.add(getattr(self.board_profile, "component_type", "esp32"))
+        return ids
+
+    def _extract_gpio_number(self, pin_name: str) -> int | None:
+        p = str(pin_name).strip()
+        if p.startswith("GPIO") and p[4:].isdigit():
+            return int(p[4:])
+        if p.startswith("D") and p[1:].isdigit():
+            return int(p[1:])
+        if p.isdigit():
+            return int(p)
+        if hasattr(self, "board_profile") and self.board_profile:
+            p_obj = self.board_profile.get_pin(p)
+            if p_obj and getattr(p_obj, "number", -1) >= 0:
+                return p_obj.number
+        return None
+
+    def _is_net_high(self, net: set[tuple[str, str]], resolver: Optional[ElectricalNetResolver] = None) -> bool:
+        """Indique si le net est relié à une source de potentiel positif (VCC ou GPIO OUT=1)."""
+        board_ids = self._get_board_component_ids()
+        vcc_pin_names = {"3V3", "3.3V", "5V", "VIN", "VCC", "IOREF"}
+
+        from ...simulator.modules import machine as sim_machine
+        gpio_mgr = getattr(sim_machine.Pin, "_gpio_manager", None)
+
+        for c_id, p_id in net:
+            if c_id in board_ids:
+                p_upper = p_id.upper()
+                if p_upper in vcc_pin_names or any(p_upper.startswith(v) for v in ("3V3", "3.3V", "5V")):
+                    return True
+
+                pin_num = self._extract_gpio_number(p_id)
+                if pin_num is not None:
+                    if pin_num in self._gpio_states:
+                        if self._gpio_states[pin_num] == 1:
+                            if gpio_mgr is None or pin_num not in getattr(gpio_mgr, "_modes", {}) or gpio_mgr.get_mode(pin_num) in (3, 7):
+                                return True
+                    elif gpio_mgr is not None:
+                        mode = gpio_mgr.get_mode(pin_num)
+                        if mode in (3, 7):
+                            if gpio_mgr._values.get(pin_num, 0) == 1:
+                                return True
+
+            if c_id in self.device_models:
+                dev = self.device_models[c_id]
+                if hasattr(dev, "get_digital_state"):
+                    try:
+                        d_state = dev.get_digital_state(p_id)
+                        if d_state and getattr(d_state, "status", "") == "HIGH":
+                            return True
+                    except Exception:
+                        pass
+
+        return False
+
+    def _is_net_low(self, net: set[tuple[str, str]], resolver: Optional[ElectricalNetResolver] = None) -> bool:
+        """Indique si le net est relié à une référence de potentiel nul (GND ou GPIO OUT=0)."""
+        board_ids = self._get_board_component_ids()
+
+        from ...simulator.modules import machine as sim_machine
+        gpio_mgr = getattr(sim_machine.Pin, "_gpio_manager", None)
+
+        for c_id, p_id in net:
+            if c_id in board_ids:
+                p_upper = p_id.upper()
+                if "GND" in p_upper:
+                    return True
+
+                pin_num = self._extract_gpio_number(p_id)
+                if pin_num is not None:
+                    if pin_num in self._gpio_states:
+                        if self._gpio_states[pin_num] == 0:
+                            if gpio_mgr is None or pin_num not in getattr(gpio_mgr, "_modes", {}) or gpio_mgr.get_mode(pin_num) in (3, 7):
+                                return True
+                    elif gpio_mgr is not None:
+                        mode = gpio_mgr.get_mode(pin_num)
+                        if mode in (3, 7):
+                            if gpio_mgr._values.get(pin_num, 0) == 0:
+                                return True
+
+            if c_id in self.device_models:
+                dev = self.device_models[c_id]
+                if hasattr(dev, "get_digital_state"):
+                    try:
+                        d_state = dev.get_digital_state(p_id)
+                        if d_state and getattr(d_state, "status", "") == "LOW":
+                            return True
+                    except Exception:
+                        pass
+
+        return False
+
+    def _evaluate_led_is_lit(self, led_item: LEDGraphicsItem, resolver: Optional[ElectricalNetResolver] = None) -> bool:
+        """Détermine si une LED doit s'allumer selon la continuité électrique réelle (circuit fermé)."""
+        if resolver is None:
+            resolver = self._create_net_resolver()
+        bb_id = self.breadboard_item.breadboard_id if self.breadboard_item else None
+
+        comp_id = led_item.component_id
+        anode_net = resolver.get_connected_pins(comp_id, "anode", bb_id)
+        cathode_net = resolver.get_connected_pins(comp_id, "cathode", bb_id)
+
+        # Si anode et cathode sont sur le même net (court-circuit) -> pas de différence de potentiel
+        if anode_net & cathode_net:
+            return False
+
+        anode_high = self._is_net_high(anode_net, resolver)
+        cathode_low = self._is_net_low(cathode_net, resolver)
+
+        anode_low = self._is_net_low(anode_net, resolver)
+        cathode_high = self._is_net_high(cathode_net, resolver)
+
+        # La LED s'allume si et seulement si :
+        # - L'anode est à un potentiel HAUT (VCC ou GPIO OUT=1)
+        # - La cathode est à un potentiel BAS (GND ou GPIO OUT=0)
+        # - La cathode n'est pas aussi à un potentiel HAUT (sinon 0V de ddp)
+        # - L'anode n'est pas aussi à un potentiel BAS (sinon court-circuit)
+        return anode_high and cathode_low and not cathode_high and not anode_low
+
+    def _update_all_electrical_components(self, resolver: Optional[ElectricalNetResolver] = None):
+        """Met à jour l'état de tous les composants selon la continuité électrique réelle."""
+        if resolver is None:
+            resolver = self._create_net_resolver()
+        bb_id = self.breadboard_item.breadboard_id if self.breadboard_item else None
+
+        for comp_id, item in list(self.component_items.items()):
+            if isinstance(item, LEDGraphicsItem):
+                should_be_lit = self._evaluate_led_is_lit(item, resolver)
+                item.set_state(should_be_lit)
+            elif type(item).__name__ == "BuzzerGraphicsItem":
+                pos_net = resolver.get_connected_pins(comp_id, "pos", bb_id)
+                neg_net = resolver.get_connected_pins(comp_id, "neg", bb_id)
+                if not (pos_net & neg_net) and self._is_net_high(pos_net, resolver) and self._is_net_low(neg_net, resolver):
+                    item.set_active(True, 1000)
+                else:
+                    item.set_active(False, 0)
+            elif isinstance(item, RelayGraphicsItem):
+                vcc_net = resolver.get_connected_pins(comp_id, "vcc", bb_id)
+                gnd_net = resolver.get_connected_pins(comp_id, "gnd", bb_id)
+                in_net = resolver.get_connected_pins(comp_id, "in", bb_id)
+                has_power = self._is_net_high(vcc_net, resolver) and self._is_net_low(gnd_net, resolver)
+                if has_power and self._is_net_high(in_net, resolver):
+                    item.set_state(True)
+                else:
+                    item.set_state(False)
+            elif type(item).__name__ == "RGBLEDGraphicsItem":
+                gnd_net = resolver.get_connected_pins(comp_id, "pin_gnd", bb_id)
+                if self._is_net_low(gnd_net, resolver):
+                    r_net = resolver.get_connected_pins(comp_id, "pin_r", bb_id)
+                    g_net = resolver.get_connected_pins(comp_id, "pin_g", bb_id)
+                    b_net = resolver.get_connected_pins(comp_id, "pin_b", bb_id)
+                    val_r = 255 if self._is_net_high(r_net, resolver) else 0
+                    val_g = 255 if self._is_net_high(g_net, resolver) else 0
+                    val_b = 255 if self._is_net_high(b_net, resolver) else 0
+                    item.set_color_rgb(val_r, val_g, val_b)
+                else:
+                    item.set_color_rgb(0, 0, 0)
+
     def _on_gpio_changed(self, pin_num: int, value: int):
         """Réaction en temps réel aux signaux GPIO émis par le simulateur"""
-        if pin_num == 2 and self.board_item:
-            self.board_item.set_gpio2_led(bool(value))
+        self._gpio_states[pin_num] = value
 
-        gpio_key = f"GPIO{pin_num}"
-        reachable = self.get_connected_pins("esp32", gpio_key)
+        if self.board_item:
+            if hasattr(self.board_item, "set_gpio2_led") and pin_num == 2:
+                self.board_item.set_gpio2_led(bool(value))
+            elif hasattr(self.board_item, "set_led_state"):
+                self.board_item.set_led_state(pin_num, bool(value))
 
-        for comp_id, pin_name in reachable:
-            item = self.component_items.get(comp_id)
-            if isinstance(item, LEDGraphicsItem) and pin_name in ("anode", "+ (Anode)"):
-                item.set_state(bool(value))
-            elif isinstance(item, RelayGraphicsItem) and pin_name in ("in", "vcc"):
-                item.set_state(bool(value))
-            elif isinstance(item, StepperMotorGraphicsItem) and pin_name.startswith("in"):
-                if value == 1:
+        resolver = self._create_net_resolver()
+        self._update_all_electrical_components(resolver)
+
+        # Moteur pas-à-pas (stepper)
+        if value == 1:
+            reachable = set()
+            for b_id in self._get_board_component_ids():
+                reachable |= resolver.get_connected_pins(b_id, f"GPIO{pin_num}")
+                reachable |= resolver.get_connected_pins(b_id, f"D{pin_num}")
+                reachable |= resolver.get_connected_pins(b_id, str(pin_num))
+
+            for comp_id, pin_name in reachable:
+                item = self.component_items.get(comp_id)
+                if isinstance(item, StepperMotorGraphicsItem) and pin_name.startswith("in"):
                     try:
                         step_idx = int(pin_name.replace("in", "")) - 1
                         item.set_step(step_idx)
                     except Exception:
                         pass
-            elif type(item).__name__ == "BuzzerGraphicsItem" and pin_name in ("+", "vcc", "signal"):
-                item.set_active(bool(value), 1000 if value else 0)
-            elif type(item).__name__ == "RGBLEDGraphicsItem":
-                if pin_name == "r":
-                    item.set_pwm("r", 1000, 1023 if value else 0)
-                elif pin_name == "g":
-                    item.set_pwm("g", 1000, 1023 if value else 0)
-                elif pin_name == "b":
-                    item.set_pwm("b", 1000, 1023 if value else 0)
 
     def _on_button_pressed(self, comp_id: str):
         """Actionnement physique du bouton poussoir"""
@@ -979,18 +1281,63 @@ class CircuitScene(QGraphicsScene):
         # L'ADCManager viendra lire l'état au besoin via read().
 
     def _on_pwm_changed(self, pin_num: int, freq: int, duty: int):
-        """Met à jour servomoteurs et buzzers connectés au signal PWM"""
-        gpio_key = f"GPIO{pin_num}"
-        reachable = self.get_connected_pins("esp32", gpio_key)
+        """Met à jour servomoteurs, buzzers et LEDs connectés au signal PWM"""
+        reachable = set()
+        for b_id in self._get_board_component_ids():
+            reachable |= self.get_connected_pins(b_id, f"GPIO{pin_num}")
+            reachable |= self.get_connected_pins(b_id, f"D{pin_num}")
+            reachable |= self.get_connected_pins(b_id, str(pin_num))
+
+        is_uno = False
+        if getattr(self, "board_item", None):
+            bid = getattr(self.board_item, "board_id", "")
+            if bid in ("arduino_uno", "uno", "arduino"):
+                is_uno = True
+        max_pwm = 255.0 if is_uno else 1023.0
 
         for comp_id, pin_name in reachable:
             item = self.component_items.get(comp_id)
-            if isinstance(item, ServoGraphicsItem) and pin_name == "sig":
-                duty_norm = max(26, min(128, duty))
-                angle = (duty_norm - 26) / (128 - 26) * 180.0
+            if isinstance(item, ServoGraphicsItem) and pin_name in ("sig", "pwm", "control", "signal"):
+                if duty <= 35:
+                    duty_norm = max(7, min(31, duty))
+                    angle = (duty_norm - 7) / 24.0 * 180.0
+                else:
+                    duty_norm = max(26, min(128, duty))
+                    angle = (duty_norm - 26) / 102.0 * 180.0
                 item.set_angle(angle)
             elif isinstance(item, BuzzerGraphicsItem) and pin_name in ("pos", "pin1"):
-                item.set_active(duty > 0, freq)
+                neg_net = self.get_connected_pins(comp_id, "neg")
+                if self._is_net_low(neg_net):
+                    item.set_active(duty > 0, freq)
+                else:
+                    item.set_active(False, 0)
+            elif isinstance(item, LEDGraphicsItem):
+                cathode_net = self.get_connected_pins(comp_id, "cathode")
+                anode_net = self.get_connected_pins(comp_id, "anode")
+                if not (anode_net & cathode_net):
+                    norm_ratio = max(0.0, min(1.0, duty / max_pwm))
+                    if pin_name in ("anode", "+ (Anode)") and self._is_net_low(cathode_net):
+                        item.set_brightness(norm_ratio)
+                    elif pin_name in ("cathode", "- (Cathode)") and self._is_net_high(anode_net):
+                        item.set_brightness(1.0 - norm_ratio)
+                    else:
+                        item.set_state(False)
+                        item.set_brightness(0.0)
+                else:
+                    item.set_state(False)
+                    item.set_brightness(0.0)
+            elif type(item).__name__ == "RGBLEDGraphicsItem":
+                gnd_net = self.get_connected_pins(comp_id, "pin_gnd")
+                if self._is_net_low(gnd_net):
+                    duty_255 = int(max(0, min(255, duty * 255 / 1023)))
+                    if pin_name in ("r", "pin_r"):
+                        item.set_pwm("r", 1000, duty_255)
+                    elif pin_name in ("g", "pin_g"):
+                        item.set_pwm("g", 1000, duty_255)
+                    elif pin_name in ("b", "pin_b"):
+                        item.set_pwm("b", 1000, duty_255)
+                else:
+                    item.set_color_rgb(0, 0, 0)
 
     def _handle_oled_update_gui(self, component_id: str, width: int, height: int, buffer: bytes):
         item = self.component_items.get(component_id)
@@ -1020,28 +1367,28 @@ class CircuitScene(QGraphicsScene):
 
     def re_evaluate_topology(self):
         """Réévalue l'état visuel de tous les composants selon la topologie actuelle."""
-        # 1. Émettre la topologie au moteur de simulation
         resolver = self._create_net_resolver()
         try:
             from esp32_lab.app.event_bus import get_event_bus
             get_event_bus().topology_updated.emit(resolver, self.device_models)
         except Exception:
             pass
-            
+
         from ...simulator.modules import machine as sim_machine
-        if not sim_machine.Pin._gpio_manager:
-            return
-        # Eteindre tout
-        self._on_simulation_stopped()
-        # Rallumer selon l'état actuel des GPIO
-        mgr = sim_machine.Pin._gpio_manager
-        for pin_num, value in list(mgr._values.items()):
-            if value:
-                self._on_gpio_changed(pin_num, value)
+        gpio_mgr = getattr(sim_machine.Pin, "_gpio_manager", None)
+        if gpio_mgr:
+            for pin_num, value in list(gpio_mgr._values.items()):
+                self._gpio_states[pin_num] = value
+
+        self._update_all_electrical_components(resolver)
 
     def _on_simulation_stopped(self):
+        self._gpio_states.clear()
         if self.board_item:
-            self.board_item.set_gpio2_led(False)
+            if hasattr(self.board_item, "set_gpio2_led"):
+                self.board_item.set_gpio2_led(False)
+            if hasattr(self.board_item, "set_led_state"):
+                self.board_item.set_led_state(13, False)
         for item in self.component_items.values():
             if isinstance(item, LEDGraphicsItem):
                 item.set_state(False)
@@ -1051,6 +1398,8 @@ class CircuitScene(QGraphicsScene):
                 item.clear()
             elif isinstance(item, BuzzerGraphicsItem):
                 item.set_active(False, 0)
+            elif type(item).__name__ == "RGBLEDGraphicsItem":
+                item.set_color_rgb(0, 0, 0)
 
     def _on_tm1637_update(self, text: str, colon: bool):
         self.tm1637_update_signal.emit(text, colon)

@@ -79,3 +79,93 @@ class PythonHighlighter(QSyntaxHighlighter):
             for match in pattern.finditer(text):
                 start, end = match.span()
                 self.setFormat(start, end - start, fmt)
+
+
+class CppHighlighter(QSyntaxHighlighter):
+    """Coloration syntaxique pour le code Arduino C / C++."""
+
+    def __init__(self, document, theme_name: str = "dark"):
+        super().__init__(document)
+        self.rules = []
+        self.theme_name = theme_name
+        self._setup_rules()
+
+    def set_theme(self, theme_name: str):
+        if self.theme_name != theme_name:
+            self.theme_name = theme_name
+            self._setup_rules()
+            self.rehighlight()
+
+    def _setup_rules(self):
+        self.rules.clear()
+        is_light = (self.theme_name == "light")
+
+        keyword_format = QTextCharFormat()
+        keyword_format.setForeground(QColor("#be123c" if is_light else "#f43f5e"))
+        keyword_format.setFontWeight(QFont.Bold)
+
+        builtin_format = QTextCharFormat()
+        builtin_format.setForeground(QColor("#0369a1" if is_light else "#38bdf8"))
+        builtin_format.setFontWeight(QFont.Bold)
+
+        preprocessor_format = QTextCharFormat()
+        preprocessor_format.setForeground(QColor("#7c3aed" if is_light else "#a78bfa"))
+        preprocessor_format.setFontWeight(QFont.Bold)
+
+        string_format = QTextCharFormat()
+        string_format.setForeground(QColor("#15803d" if is_light else "#4ade80"))
+
+        comment_format = QTextCharFormat()
+        comment_format.setForeground(QColor("#475569" if is_light else "#94a3b8"))
+        comment_format.setFontItalic(True)
+
+        number_format = QTextCharFormat()
+        number_format.setForeground(QColor("#b45309" if is_light else "#fbbf24"))
+
+        # Mots-clés C / C++
+        keywords = [
+            r"\bif\b", r"\belse\b", r"\bwhile\b", r"\bfor\b", r"\bdo\b", r"\bswitch\b",
+            r"\bcase\b", r"\bdefault\b", r"\bbreak\b", r"\bcontinue\b", r"\breturn\b",
+            r"\bvoid\b", r"\bint\b", r"\blong\b", r"\bfloat\b", r"\bdouble\b", r"\bbool\b",
+            r"\bboolean\b", r"\bchar\b", r"\bbyte\b", r"\buint8_t\b", r"\buint16_t\b",
+            r"\buint32_t\b", r"\bint8_t\b", r"\bint16_t\b", r"\bint32_t\b", r"\bunsigned\b",
+            r"\bsigned\b", r"\bshort\b", r"\bconst\b", r"\bstatic\b", r"\bString\b",
+            r"\bstruct\b", r"\bclass\b", r"\btrue\b", r"\bfalse\b", r"\bsizeof\b"
+        ]
+        for kw in keywords:
+            self.rules.append((re.compile(kw), keyword_format))
+
+        # API Arduino
+        builtins = [
+            r"\bsetup\b", r"\bloop\b", r"\bpinMode\b", r"\bdigitalWrite\b", r"\bdigitalRead\b",
+            r"\banalogRead\b", r"\banalogWrite\b", r"\bdelay\b", r"\bdelayMicroseconds\b",
+            r"\bmillis\b", r"\bmicros\b", r"\bmap\b", r"\bconstrain\b", r"\bmin\b", r"\bmax\b",
+            r"\babs\b", r"\bsq\b", r"\bsqrt\b", r"\brandom\b", r"\brandomSeed\b",
+            r"\bSerial\b", r"\bServo\b", r"\bLiquidCrystal\b",
+            r"\bHIGH\b", r"\bLOW\b", r"\bINPUT\b", r"\bOUTPUT\b", r"\bINPUT_PULLUP\b",
+            r"\bLED_BUILTIN\b", r"\bA0\b", r"\bA1\b", r"\bA2\b", r"\bA3\b", r"\bA4\b", r"\bA5\b"
+        ]
+        for bi in builtins:
+            self.rules.append((re.compile(bi), builtin_format))
+
+        # Préprocesseur (#include, #define, etc.)
+        self.rules.append((re.compile(r"#[a-zA-Z_]+[^\n]*"), preprocessor_format))
+
+        # Nombres
+        self.rules.append((re.compile(r"\b0x[0-9a-fA-F]+\b"), number_format))
+        self.rules.append((re.compile(r"\b0b[01]+\b"), number_format))
+        self.rules.append((re.compile(r"\b[0-9]+(\.[0-9]+)?\b"), number_format))
+
+        # Chaînes et caractères
+        self.rules.append((re.compile(r'"[^"\\]*(\\.[^"\\]*)*"'), string_format))
+        self.rules.append((re.compile(r"'[^'\\]*(\\.[^'\\]*)*'"), string_format))
+
+        # Commentaires // et /* */
+        self.rules.append((re.compile(r"//[^\n]*"), comment_format))
+        self.rules.append((re.compile(r"/\*.*?\*/", re.DOTALL), comment_format))
+
+    def highlightBlock(self, text: str):
+        for pattern, fmt in self.rules:
+            for match in pattern.finditer(text):
+                start, end = match.span()
+                self.setFormat(start, end - start, fmt)

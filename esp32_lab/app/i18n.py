@@ -83,6 +83,7 @@ TRANSLATIONS = {
         'act_reset': '↻ Réinitialiser ESP32',
         'act_erc': '🛡️ Vérifier le circuit (Règles ERC)',
         'act_upload': '☁ Téléverser vers ESP32 physique...',
+        'act_upload_arduino': '⚡ Téléverser vers Arduino Uno physique...',
         'act_bridge': '🌐 Passerelle Réseau Réelle (Hôte PC)',
         'act_bridge_tip': 'Permet à l\'ESP32 simulé d\'utiliser la vraie connexion Internet du PC (sockets réels, requêtes HTTP, IP locale).',
 
@@ -113,11 +114,13 @@ TRANSLATIONS = {
         # Boutons d'action rapides
         'btn_simulate': '▶ Simuler',
         'btn_upload': '☁ Téléverser vers ESP32',
+        'btn_upload_arduino': '⚡ Téléverser vers Arduino',
         'btn_stop': '⏹ Stop',
         'btn_reset': '↻ Reset',
         'btn_simulate_tip': 'Démarrer la simulation MicroPython (F5)',
         'btn_stop_tip': 'Arrêter la simulation (F6)',
         'btn_upload_tip': 'Téléverser vers ESP32 physique connecté en USB',
+        'btn_upload_arduino_tip': 'Compiler et téléverser vers Arduino Uno physique connecté en USB',
         'btn_reset_tip': 'Réinitialiser l\'ESP32 et la simulation',
 
         # Onglets
@@ -128,7 +131,7 @@ TRANSLATIONS = {
         'tab_erc': '🛡️ Diagnostic Électrique (ERC)',
 
         # Page d'accueil
-        'welcome_tagline': 'Laboratoire Virtuel de Programmation MicroPython & Électronique',
+        'welcome_tagline': "Laboratoire Virtuel d'Électronique & Programmation (MicroPython & Arduino C++)",
         'welcome_desc': 'Coder · Simuler · Expérimenter · Apprendre',
         'welcome_hint': 'Ouvrez ou créez un montage depuis le menu Fichier (Ctrl+N / Ctrl+O)',
         'welcome_chk_startup': 'Afficher cette page d\'accueil au démarrage',
@@ -238,6 +241,7 @@ TRANSLATIONS = {
         'act_reset': '↻ Reset ESP32',
         'act_erc': '🛡️ Check Circuit (ERC Rules)',
         'act_upload': '☁ Upload to Physical ESP32...',
+        'act_upload_arduino': '⚡ Upload to Physical Arduino Uno...',
         'act_bridge': '🌐 Real Host Network Gateway (PC)',
         'act_bridge_tip': 'Allows simulated ESP32 to use the PC\'s real internet connection (real sockets, HTTP requests, local IP).',
 
@@ -268,11 +272,13 @@ TRANSLATIONS = {
         # Action Buttons
         'btn_simulate': '▶ Simulate',
         'btn_upload': '☁ Upload to ESP32',
+        'btn_upload_arduino': '⚡ Upload to Arduino',
         'btn_stop': '⏹ Stop',
         'btn_reset': '↻ Reset',
         'btn_simulate_tip': 'Start MicroPython simulation (F5)',
         'btn_stop_tip': 'Stop simulation (F6)',
         'btn_upload_tip': 'Upload to physical ESP32 board via USB',
+        'btn_upload_arduino_tip': 'Compile and upload to physical Arduino Uno via USB',
         'btn_reset_tip': 'Reset ESP32 and simulation',
 
         # Tabs
@@ -283,7 +289,7 @@ TRANSLATIONS = {
         'tab_erc': '🛡️ Electrical Diagnostic (ERC)',
 
         # Welcome Page
-        'welcome_tagline': 'Virtual MicroPython Programming & Electronics Laboratory',
+        'welcome_tagline': 'Virtual Electronics & Programming Laboratory (MicroPython & Arduino C++)',
         'welcome_desc': 'Code · Simulate · Experiment · Learn',
         'welcome_hint': 'Open or create a circuit from the File menu (Ctrl+N / Ctrl+O)',
         'welcome_chk_startup': 'Show this welcome screen on startup',

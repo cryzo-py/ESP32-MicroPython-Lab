@@ -47,6 +47,20 @@ class PotentiometerGraphicsItem(QGraphicsObject):
         self.pin_gnd = PinAnchorItem(component_id, "gnd", "GND", parent=self)
         self.pin_gnd.setPos(8.5, 32)
 
+    def set_raw_value(self, val: int):
+        self.raw_value = max(0, min(4095, int(val)))
+        self.update()
+
+    def get_pin_anchor(self, pin_id: str) -> PinAnchorItem | None:
+        pid = pin_id.lower().strip()
+        if pid in ("vcc", "pin1", "1", "left"):
+            return self.pin_vcc
+        elif pid in ("sig", "pin2", "2", "mid", "center", "wiper"):
+            return self.pin_sig
+        elif pid in ("gnd", "pin3", "3", "right"):
+            return self.pin_gnd
+        return None
+
     def boundingRect(self) -> QRectF:
         return QRectF(-28, -28, 56, 68)
 

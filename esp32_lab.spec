@@ -1,4 +1,4 @@
-﻿# -*- mode: python ; coding: utf-8 -*-
+# -*- mode: python ; coding: utf-8 -*-
 """
 Fichier de configuration PyInstaller pour ESP32 MicroPython Lab
 Auteur : Fares Bel Haj Ali
@@ -12,17 +12,21 @@ block_cipher = None
 
 ROOT_DIR = Path.cwd()
 
-# Fichiers de donnÃ©es et ressources Ã  embarquer
+# Fichiers de données et ressources à embarquer
 datas = [
     ('esp32_lab/resources', 'esp32_lab/resources'),
+    ('esp32_lab/core/board_profiles', 'esp32_lab/core/board_profiles'),
     ('examples', 'examples'),
     ('docs', 'docs'),
     ('LICENSE', '.'),
     ('README.md', '.'),
 ]
 
-# Modules masquÃ©s ou dynamiques
+# Modules masqués ou dynamiques
 hiddenimports = [
+    'serial',
+    'serial.tools',
+    'serial.tools.list_ports',
     'PySide6',
     'PySide6.QtCore',
     'PySide6.QtGui',
@@ -95,7 +99,7 @@ exe_student = EXE(
     a_student.scripts,
     [],
     exclude_binaries=True,
-    name='ESP32_Lab_Student',
+    name='ESP32_Arduino_Lab_Student',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -114,7 +118,7 @@ exe_teacher = EXE(
     a_teacher.scripts,
     [],
     exclude_binaries=True,
-    name='ESP32_Lab_Teacher',
+    name='ESP32_Arduino_Lab_Teacher_Studio',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -136,7 +140,7 @@ coll_student = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='ESP32_Lab_Student',
+    name='ESP32_Arduino_Lab_Student',
 )
 
 coll_teacher = COLLECT(
@@ -147,5 +151,5 @@ coll_teacher = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='ESP32_Lab_Teacher',
+    name='ESP32_Arduino_Lab_Teacher_Studio',
 )

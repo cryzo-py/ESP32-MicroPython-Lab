@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import os
 import ctypes
 from pathlib import Path
@@ -13,7 +13,7 @@ from esp32_lab.ui.splash_screen import SplashScreen
 def main():
     if sys.platform == "win32":
         try:
-            myappid = "faresbelhajali.esp32lab.simulator.teacher.3.0"
+            myappid = "faresbelhajali.esp32lab.simulator.teacher.4.0"
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception:
             pass

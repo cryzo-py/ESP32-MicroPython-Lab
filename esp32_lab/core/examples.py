@@ -7,7 +7,7 @@ from .models.connection import ConnectionModel
 from .models.project import ProjectModel
 
 
-def get_all_examples() -> dict[str, ProjectModel]:
+def get_esp32_examples() -> dict[str, ProjectModel]:
     return {
         "blink": create_blink_example(),
         "button_led": create_button_led_example(),
@@ -26,6 +26,23 @@ def get_all_examples() -> dict[str, ProjectModel]:
         "mqtt_client": create_mqtt_example(),
         "ble_scanner": create_ble_scanner_example(),
     }
+
+
+def get_uno_examples() -> dict[str, ProjectModel]:
+    return {
+        "uno_blink": create_uno_blink_example(),
+        "uno_button_led": create_uno_button_led_example(),
+        "uno_pot_pwm": create_uno_pot_pwm_example(),
+        "uno_servo": create_uno_servo_example(),
+        "uno_traffic_lights": create_uno_traffic_lights_example(),
+        "uno_lcd": create_uno_lcd_example(),
+    }
+
+
+def get_all_examples() -> dict[str, ProjectModel]:
+    examples = get_esp32_examples()
+    examples.update(get_uno_examples())
+    return examples
 
 
 def create_blink_example() -> ProjectModel:
@@ -735,5 +752,314 @@ print("Exploration terminée avec succès.")
     proj = ProjectModel(name="Scanner Bluetooth BLE", description="Découverte et analyse des balises et périphériques Bluetooth BLE environnants", files={"main.py": code})
     breadboard = ComponentModel(id="breadboard_1", type="breadboard", x=260, y=50)
     proj.components.append(breadboard)
+    return proj
+
+
+# =============================================================================
+# EXEMPLES OFFICIELS C++ ARDUINO (ARDUINO UNO R3)
+# =============================================================================
+
+def create_uno_blink_example() -> ProjectModel:
+    code = """// Exemple 1 : Clignotement de LED sur Arduino Uno
+const int LED_PIN = 13; // Broche numérique 13 (LED intégrée 'L')
+
+void setup() {
+  // Configuration de la broche en sortie numérique
+  pinMode(LED_PIN, OUTPUT);
+  Serial.begin(9600);
+  Serial.println("Arduino Uno démarré : clignotement D13...");
+}
+
+void loop() {
+  // Allumer la LED (niveau logique HAUT / 5V)
+  digitalWrite(LED_PIN, HIGH);
+  Serial.println("LED ALLUMÉE (HIGH)");
+  delay(1000); // Pause de 1000 millisecondes
+
+  // Éteindre la LED (niveau logique BAS / 0V)
+  digitalWrite(LED_PIN, LOW);
+  Serial.println("LED ÉTEINTE (LOW)");
+  delay(1000); // Pause de 1000 millisecondes
+}
+"""
+    proj = ProjectModel(
+        name="LED Clignotante (Arduino Uno)",
+        description="Clignotement périodique d'une LED rouge connectée sur la broche numérique D13 et LED intégrée 'L'",
+        board_id="arduino_uno",
+        language="arduino_c",
+        files={"sketch.ino": code}
+    )
+    uno = ComponentModel(id="arduino_uno", type="arduino_uno", name="Arduino Uno R3", x=60, y=60)
+    breadboard = ComponentModel(id="breadboard_1", type="breadboard", x=300, y=50)
+    led = ComponentModel(id="led_1", type="led", name="LED Rouge", x=354.5, y=129.0, properties={"color": "red"}, pin_insertions={"anode": "r10_b", "cathode": "r11_b"})
+    res = ComponentModel(id="res_1", type="resistor", name="Résistance 220Ω", x=363.0, y=188.5, properties={"value": 220}, pin_insertions={"pin1": "r11_c", "pin2": "r17_c"})
+    proj.components.extend([uno, breadboard, led, res])
+    proj.connections.extend([
+        ConnectionModel(id="w1", from_component="arduino_uno", from_pin="13", to_component="breadboard_1", to_pin="r10_a", color="#ef4444"),
+        ConnectionModel(id="w2", from_component="breadboard_1", from_pin="r17_a", to_component="breadboard_1", to_pin="rail_l_minus_17", color="#1e293b"),
+        ConnectionModel(id="w3", from_component="breadboard_1", from_pin="rail_l_minus_28", to_component="arduino_uno", to_pin="GND_1", color="#0f172a"),
+    ])
+    return proj
+
+
+def create_uno_button_led_example() -> ProjectModel:
+    code = """// Exemple 2 : Bouton Poussoir et LED (Arduino Uno)
+const int BUTTON_PIN = 2; // Broche bouton poussoir
+const int LED_PIN = 13;    // Broche LED
+
+void setup() {
+  // Activation de la résistance interne de tirage vers le haut
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(LED_PIN, OUTPUT);
+  Serial.begin(9600);
+  Serial.println("Contrôle interactif : appuyez sur le bouton D2...");
+}
+
+void loop() {
+  int etat = digitalRead(BUTTON_PIN);
+  
+  // Avec INPUT_PULLUP : le bouton pressé tire la broche à LOW (0V)
+  if (etat == LOW) {
+    digitalWrite(LED_PIN, HIGH);
+    Serial.println("Bouton pressé -> LED ALLUMÉE");
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+  delay(50);
+}
+"""
+    proj = ProjectModel(
+        name="Bouton Poussoir & LED (Arduino Uno)",
+        description="Lecture d'une entrée numérique avec pull-up interne et commande immédiate de LED",
+        board_id="arduino_uno",
+        language="arduino_c",
+        files={"sketch.ino": code}
+    )
+    uno = ComponentModel(id="arduino_uno", type="arduino_uno", name="Arduino Uno R3", x=60, y=60)
+    breadboard = ComponentModel(id="breadboard_1", type="breadboard", x=300, y=50)
+    led = ComponentModel(id="led_1", type="led", name="LED Verte", x=354.5, y=112.0, properties={"color": "green"}, pin_insertions={"anode": "r8_b", "cathode": "r9_b"})
+    btn = ComponentModel(id="btn_1", type="button", name="Bouton Poussoir", x=399.0, y=214.0, pin_insertions={"pin1": "r16_e", "pin2": "r16_f", "pin3": "r18_e", "pin4": "r18_f"})
+    proj.components.extend([uno, breadboard, led, btn])
+    proj.connections.extend([
+        ConnectionModel(id="w1", from_component="arduino_uno", from_pin="13", to_component="breadboard_1", to_pin="r8_a", color="#22c55e"),
+        ConnectionModel(id="w2", from_component="breadboard_1", from_pin="r9_a", to_component="breadboard_1", to_pin="rail_l_minus_9", color="#0f172a"),
+        ConnectionModel(id="w3", from_component="arduino_uno", from_pin="2", to_component="breadboard_1", to_pin="r16_a", color="#38bdf8"),
+        ConnectionModel(id="w4", from_component="breadboard_1", from_pin="r18_a", to_component="breadboard_1", to_pin="rail_l_minus_18", color="#1e293b"),
+        ConnectionModel(id="w5", from_component="breadboard_1", from_pin="rail_l_minus_28", to_component="arduino_uno", to_pin="GND_1", color="#0f172a"),
+    ])
+    return proj
+
+
+def create_uno_pot_pwm_example() -> ProjectModel:
+    code = """// Exemple 3 : Variateur PWM et Potentiomètre (Arduino Uno)
+const int POT_PIN = A0; // Entrée analogique A0
+const int LED_PIN = 9;  // Sortie PWM ~9
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  Serial.begin(9600);
+  Serial.println("Variateur PWM démarré : tournez le potentiomètre (A0)");
+}
+
+void loop() {
+  // Lecture de la tension sur 10 bits (0 à 1023)
+  int val_adc = analogRead(POT_PIN);
+  
+  // Étalonnage de la valeur 0-1023 vers le rapport cyclique PWM 0-255
+  int pwm = map(val_adc, 0, 1023, 0, 255);
+  analogWrite(LED_PIN, pwm);
+
+  Serial.print("Tension ADC A0 : ");
+  Serial.print(val_adc);
+  Serial.print(" | Rapport PWM D9 : ");
+  Serial.println(pwm);
+  delay(100);
+}
+"""
+    proj = ProjectModel(
+        name="Variateur PWM & Potentiomètre (Arduino Uno)",
+        description="Conversion analogique-numérique (ADC A0) et gradation de LED en modulation de largeur d'impulsion (PWM D9)",
+        board_id="arduino_uno",
+        language="arduino_c",
+        files={"sketch.ino": code}
+    )
+    uno = ComponentModel(id="arduino_uno", type="arduino_uno", name="Arduino Uno R3", x=60, y=60)
+    breadboard = ComponentModel(id="breadboard_1", type="breadboard", x=300, y=50)
+    pot = ComponentModel(id="pot_1", type="potentiometer", name="Potentiomètre 10kΩ", x=380.0, y=140.0, properties={"raw_value": 512}, pin_insertions={"vcc": "r10_d", "sig": "r11_d", "gnd": "r12_d"})
+    led = ComponentModel(id="led_1", type="led", name="LED Bleue", x=354.5, y=230.0, properties={"color": "blue"}, pin_insertions={"anode": "r20_b", "cathode": "r21_b"})
+    res = ComponentModel(id="res_1", type="resistor", name="Résistance 220Ω", x=363.0, y=280.0, properties={"value": 220}, pin_insertions={"pin1": "r21_c", "pin2": "r26_c"})
+    proj.components.extend([uno, breadboard, pot, led, res])
+    proj.connections.extend([
+        ConnectionModel(id="w1", from_component="arduino_uno", from_pin="5V", to_component="breadboard_1", to_pin="r10_a", color="#ef4444"),
+        ConnectionModel(id="w2", from_component="breadboard_1", from_pin="r11_a", to_component="arduino_uno", to_pin="A0", color="#38bdf8"),
+        ConnectionModel(id="w3", from_component="breadboard_1", from_pin="r12_a", to_component="breadboard_1", to_pin="rail_l_minus_12", color="#1e293b"),
+        ConnectionModel(id="w4", from_component="arduino_uno", from_pin="9", to_component="breadboard_1", to_pin="r20_a", color="#3b82f6"),
+        ConnectionModel(id="w5", from_component="breadboard_1", from_pin="r26_a", to_component="breadboard_1", to_pin="rail_l_minus_26", color="#1e293b"),
+        ConnectionModel(id="w6", from_component="breadboard_1", from_pin="rail_l_minus_28", to_component="arduino_uno", to_pin="GND_1", color="#0f172a"),
+    ])
+    return proj
+
+
+def create_uno_servo_example() -> ProjectModel:
+    code = """// Exemple 4 : Balayage Servomoteur (Arduino Uno)
+#include <Servo.h>
+
+Servo monServo;
+const int SERVO_PIN = 9;
+
+void setup() {
+  monServo.attach(SERVO_PIN);
+  Serial.begin(9600);
+  Serial.println("Initialisation du servomoteur sur broche D9...");
+}
+
+void loop() {
+  // Rotation progressive de 0 à 180 degrés
+  for (int pos = 0; pos <= 180; pos += 15) {
+    monServo.write(pos);
+    Serial.print("Position servomoteur : ");
+    Serial.println(pos);
+    delay(100);
+  }
+  delay(400);
+
+  // Retour progressif de 180 à 0 degrés
+  for (int pos = 180; pos >= 0; pos -= 15) {
+    monServo.write(pos);
+    Serial.print("Position servomoteur : ");
+    Serial.println(pos);
+    delay(100);
+  }
+  delay(400);
+}
+"""
+    proj = ProjectModel(
+        name="Balayage Servomoteur SG90 (Arduino Uno)",
+        description="Pilotage angulaire précis d'un servomoteur avec la bibliothèque standard Servo.h",
+        board_id="arduino_uno",
+        language="arduino_c",
+        files={"sketch.ino": code}
+    )
+    uno = ComponentModel(id="arduino_uno", type="arduino_uno", name="Arduino Uno R3", x=60, y=60)
+    servo = ComponentModel(id="servo_1", type="servo", name="Servomoteur SG90", x=380, y=120, properties={"angle": 90.0})
+    proj.components.extend([uno, servo])
+    proj.connections.extend([
+        ConnectionModel(id="w1", from_component="arduino_uno", from_pin="9", to_component="servo_1", to_pin="sig", color="#f97316"),
+        ConnectionModel(id="w2", from_component="arduino_uno", from_pin="5V", to_component="servo_1", to_pin="vcc", color="#ef4444"),
+        ConnectionModel(id="w3", from_component="arduino_uno", from_pin="GND_1", to_component="servo_1", to_pin="gnd", color="#0f172a"),
+    ])
+    return proj
+
+
+def create_uno_traffic_lights_example() -> ProjectModel:
+    code = """// Exemple 5 : Carrefour à Feux Tricolores (Arduino Uno)
+const int FEU_ROUGE = 12;
+const int FEU_JAUNE = 11;
+const int FEU_VERT  = 10;
+
+void setup() {
+  pinMode(FEU_ROUGE, OUTPUT);
+  pinMode(FEU_JAUNE, OUTPUT);
+  pinMode(FEU_VERT,  OUTPUT);
+  Serial.begin(9600);
+  Serial.println("Contrôleur de carrefour routier démarré.");
+}
+
+void loop() {
+  // 1. Feu Vert
+  Serial.println("🟢 Feu Vert : Passage autorisé");
+  digitalWrite(FEU_VERT, HIGH);
+  digitalWrite(FEU_JAUNE, LOW);
+  digitalWrite(FEU_ROUGE, LOW);
+  delay(3000);
+
+  // 2. Feu Jaune
+  Serial.println("🟡 Feu Jaune : Ralentissement");
+  digitalWrite(FEU_VERT, LOW);
+  digitalWrite(FEU_JAUNE, HIGH);
+  delay(1000);
+
+  // 3. Feu Rouge
+  Serial.println("🔴 Feu Rouge : Arrêt obligatoire");
+  digitalWrite(FEU_JAUNE, LOW);
+  digitalWrite(FEU_ROUGE, HIGH);
+  delay(3000);
+}
+"""
+    proj = ProjectModel(
+        name="Feux Tricolores (Arduino Uno)",
+        description="Séquenceur temporel pour gestion de carrefour routier avec 3 sorties numériques",
+        board_id="arduino_uno",
+        language="arduino_c",
+        files={"sketch.ino": code}
+    )
+    uno = ComponentModel(id="arduino_uno", type="arduino_uno", name="Arduino Uno R3", x=60, y=60)
+    breadboard = ComponentModel(id="breadboard_1", type="breadboard", x=300, y=50)
+    led_v = ComponentModel(id="led_vert", type="led", name="Feu Vert", x=354.5, y=100.0, properties={"color": "green"}, pin_insertions={"anode": "r6_b", "cathode": "r7_b"})
+    res_v = ComponentModel(id="res_v", type="resistor", name="Résistance 220Ω", x=363.0, y=130.0, properties={"value": 220}, pin_insertions={"pin1": "r7_c", "pin2": "r10_c"})
+    led_j = ComponentModel(id="led_jaune", type="led", name="Feu Jaune", x=354.5, y=160.0, properties={"color": "yellow"}, pin_insertions={"anode": "r12_b", "cathode": "r13_b"})
+    res_j = ComponentModel(id="res_j", type="resistor", name="Résistance 220Ω", x=363.0, y=190.0, properties={"value": 220}, pin_insertions={"pin1": "r13_c", "pin2": "r16_c"})
+    led_r = ComponentModel(id="led_rouge", type="led", name="Feu Rouge", x=354.5, y=220.0, properties={"color": "red"}, pin_insertions={"anode": "r18_b", "cathode": "r19_b"})
+    res_r = ComponentModel(id="res_r", type="resistor", name="Résistance 220Ω", x=363.0, y=250.0, properties={"value": 220}, pin_insertions={"pin1": "r19_c", "pin2": "r22_c"})
+    proj.components.extend([uno, breadboard, led_v, res_v, led_j, res_j, led_r, res_r])
+    proj.connections.extend([
+        ConnectionModel(id="w1", from_component="arduino_uno", from_pin="10", to_component="breadboard_1", to_pin="r6_a", color="#22c55e"),
+        ConnectionModel(id="w2", from_component="arduino_uno", from_pin="11", to_component="breadboard_1", to_pin="r12_a", color="#eab308"),
+        ConnectionModel(id="w3", from_component="arduino_uno", from_pin="12", to_component="breadboard_1", to_pin="r18_a", color="#ef4444"),
+        ConnectionModel(id="w4", from_component="breadboard_1", from_pin="r10_a", to_component="breadboard_1", to_pin="rail_l_minus_10", color="#1e293b"),
+        ConnectionModel(id="w5", from_component="breadboard_1", from_pin="r16_a", to_component="breadboard_1", to_pin="rail_l_minus_16", color="#1e293b"),
+        ConnectionModel(id="w6", from_component="breadboard_1", from_pin="r22_a", to_component="breadboard_1", to_pin="rail_l_minus_22", color="#1e293b"),
+        ConnectionModel(id="w7", from_component="breadboard_1", from_pin="rail_l_minus_28", to_component="arduino_uno", to_pin="GND_1", color="#0f172a"),
+    ])
+    return proj
+
+
+def create_uno_lcd_example() -> ProjectModel:
+    code = """// Exemple 6 : Afficheur LCD 16x2 (Arduino Uno)
+#include <LiquidCrystal.h>
+
+// Initialisation de la bibliothèque avec les broches d'interface
+// LiquidCrystal(rs, enable, d4, d5, d6, d7)
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
+void setup() {
+  // Configuration du nombre de colonnes et de lignes du LCD (16x2)
+  lcd.begin(16, 2);
+  lcd.print("Arduino Uno Lab");
+  lcd.setCursor(0, 1);
+  lcd.print("Simulateur v4.0");
+  delay(2000);
+  lcd.clear();
+  lcd.print("Temps : ");
+}
+
+void loop() {
+  // Déplacer le curseur à la colonne 8, ligne 0
+  lcd.setCursor(8, 0);
+  lcd.print(millis() / 1000);
+  lcd.print(" s");
+  delay(500);
+}
+"""
+    proj = ProjectModel(
+        name="Afficheur LCD 1602 (Arduino Uno)",
+        description="Affichage alphanumérique dynamique avec la bibliothèque officielle LiquidCrystal.h",
+        board_id="arduino_uno",
+        language="arduino_c",
+        files={"sketch.ino": code}
+    )
+    uno = ComponentModel(id="arduino_uno", type="arduino_uno", name="Arduino Uno R3", x=60, y=60)
+    lcd = ComponentModel(id="lcd_1", type="lcd", name="Écran LCD 16x2", x=360, y=100)
+    proj.components.extend([uno, lcd])
+    proj.connections.extend([
+        ConnectionModel(id="w1", from_component="arduino_uno", from_pin="12", to_component="lcd_1", to_pin="rs", color="#3b82f6"),
+        ConnectionModel(id="w2", from_component="arduino_uno", from_pin="11", to_component="lcd_1", to_pin="en", color="#38bdf8"),
+        ConnectionModel(id="w3", from_component="arduino_uno", from_pin="5", to_component="lcd_1", to_pin="d4", color="#10b981"),
+        ConnectionModel(id="w4", from_component="arduino_uno", from_pin="4", to_component="lcd_1", to_pin="d5", color="#eab308"),
+        ConnectionModel(id="w5", from_component="arduino_uno", from_pin="3", to_component="lcd_1", to_pin="d6", color="#f97316"),
+        ConnectionModel(id="w6", from_component="arduino_uno", from_pin="2", to_component="lcd_1", to_pin="d7", color="#ef4444"),
+        ConnectionModel(id="w7", from_component="arduino_uno", from_pin="5V", to_component="lcd_1", to_pin="vcc", color="#dc2626"),
+        ConnectionModel(id="w8", from_component="arduino_uno", from_pin="GND_1", to_component="lcd_1", to_pin="gnd", color="#0f172a"),
+    ])
     return proj
 

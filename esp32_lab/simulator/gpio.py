@@ -19,30 +19,53 @@ class GPIOPull(IntEnum):
 
 
 class GPIOManager:
-    """Gère l'état logique des GPIO de l'ESP32 virtuelle"""
-    def __init__(self):
+    """Gère l'état logique des GPIO de la carte virtuelle (ESP32, Arduino Uno, etc.)"""
+    def __init__(self, board_profile=None):
+        from ..core.board_profiles import load_board_profile, BoardProfile
+        if board_profile is None:
+            try:
+                self.board_profile = load_board_profile("esp32_wroom_32")
+            except Exception:
+                self.board_profile = None
+        else:
+            self.board_profile = board_profile
+
         self._modes: dict[int, GPIOMode] = {}
         self._pulls: dict[int, GPIOPull] = {}
         self._values: dict[int, int] = {}
-        self._adc_values: dict[int, int] = {} # 0-4095
+        self._adc_values: dict[int, int] = {}
         self._pwm_values: dict[int, tuple[int, int]] = {} # (freq, duty)
         self._listeners: list[Callable[[int, int], None]] = []
         self._adc_listeners: list[Callable[[int, int], None]] = []
         self._pwm_listeners: list[Callable[[int, int, int], None]] = []
 
+    def set_board_profile(self, profile) -> None:
+        self.board_profile = profile
+
     def configure(self, pin: int, mode: int, pull: int = GPIOPull.PULL_NONE) -> None:
-        from ..core.models.board import create_default_esp32_wroom, PinType
-        board = create_default_esp32_wroom()
-        pin_def = board.get_pin(pin)
-        
-        if not pin_def:
-            raise ValueError(f"GPIO {pin} invalide ou non supporté par ce profil de carte.")
-        if pin_def.pin_type == PinType.POWER or pin_def.pin_type == PinType.GROUND:
-            raise ValueError(f"La broche {pin} est une alimentation, pas un GPIO.")
-        if pin_def.pin_type == PinType.INPUT_ONLY and mode == 3: # 3 = OUT
-            raise ValueError(f"GPIO {pin} est input-only et ne peut pas être configuré en sortie.")
-        if pull != 0 and not pin_def.pull_up_down:
-            raise ValueError(f"GPIO {pin} ne supporte pas les résistances de tirage (pull-up/pull-down).")
+        if self.board_profile:
+            pin_def = self.board_profile.get_pin(pin)
+            if not pin_def:
+                raise ValueError(f"GPIO {pin} invalide ou non supporté par ce profil de carte.")
+            from ..core.board_profiles.board_profile import BoardPinType
+            if pin_def.pin_type in (BoardPinType.POWER, BoardPinType.GROUND):
+                raise ValueError(f"La broche {pin} est une alimentation, pas un GPIO.")
+            if pin_def.pin_type == BoardPinType.INPUT_ONLY and mode == 3: # 3 = OUT
+                raise ValueError(f"GPIO {pin} est input-only et ne peut pas être configuré en sortie.")
+            if pull != 0 and not getattr(pin_def, "pull_up_down", True):
+                raise ValueError(f"GPIO {pin} ne supporte pas les résistances de tirage (pull-up/pull-down).")
+        else:
+            from ..core.models.board import create_default_esp32_wroom, PinType
+            board = create_default_esp32_wroom()
+            pin_def = board.get_pin(pin)
+            if not pin_def:
+                raise ValueError(f"GPIO {pin} invalide ou non supporté par ce profil de carte.")
+            if pin_def.pin_type in (PinType.POWER, PinType.GROUND):
+                raise ValueError(f"La broche {pin} est une alimentation, pas un GPIO.")
+            if pin_def.pin_type == PinType.INPUT_ONLY and mode == 3: # 3 = OUT
+                raise ValueError(f"GPIO {pin} est input-only et ne peut pas être configuré en sortie.")
+            if pull != 0 and not pin_def.pull_up_down:
+                raise ValueError(f"GPIO {pin} ne supporte pas les résistances de tirage (pull-up/pull-down).")
             
         self._modes[pin] = GPIOMode(mode)
         self._pulls[pin] = GPIOPull(pull)
@@ -51,6 +74,12 @@ class GPIOManager:
                 self._values[pin] = 1
             else:
                 self._values[pin] = 0
+
+    def set_mode(self, pin: int, mode: int, pull: int = GPIOPull.PULL_NONE) -> None:
+        self.configure(pin, mode, pull)
+
+    def get_mode(self, pin: int) -> GPIOMode:
+        return self._modes.get(pin, GPIOMode.IN)
 
     def write(self, pin: int, value: int) -> None:
         val = 1 if value else 0
@@ -62,26 +91,63 @@ class GPIOManager:
             # via the electrical topology, so IRQ listeners see the transition.
             self._propagate_to_inputs(pin, val)
 
+    def _get_pin_net(self, pin: int) -> list:
+        if not getattr(self, 'net_resolver', None):
+            return []
+        board_comp = getattr(self.board_profile, "component_type", "esp32") if self.board_profile else "esp32"
+        comp_candidates = [board_comp] if board_comp == "esp32" else [board_comp, "esp32"]
+        pin_variants = [f"GPIO{pin}", f"D{pin}", str(pin)]
+        if self.board_profile:
+            pin_obj = self.board_profile.get_pin(pin)
+            if pin_obj and pin_obj.name and pin_obj.name not in pin_variants:
+                pin_variants.insert(0, pin_obj.name)
+
+        fallback_net = None
+        for cid in comp_candidates:
+            for pvar in pin_variants:
+                try:
+                    net = self.net_resolver.get_connected_pins(cid, pvar)
+                    if net:
+                        if len(net) > 1:
+                            return net
+                        if fallback_net is None:
+                            fallback_net = net
+                except Exception:
+                    pass
+        return fallback_net or []
+
+    def _parse_pin_number(self, p_id: str) -> int | None:
+        if p_id.startswith("GPIO") and p_id[4:].isdigit():
+            return int(p_id[4:])
+        if p_id.startswith("D") and p_id[1:].isdigit():
+            return int(p_id[1:])
+        if p_id.isdigit():
+            return int(p_id)
+        if self.board_profile:
+            p_obj = self.board_profile.get_pin(p_id)
+            if p_obj and p_obj.number >= 0:
+                return p_obj.number
+        return None
+
     def _propagate_to_inputs(self, output_pin: int, output_val: int) -> None:
         """
         When an OUTPUT pin changes, re-evaluate all INPUT GPIOs electrically
-        connected on the same net.  If their resolved logical value changed,
+        connected on the same net. If their resolved logical value changed,
         fire _notify so that IRQ listeners (and other observers) see the edge.
         """
-        if not getattr(self, 'net_resolver', None):
+        net = self._get_pin_net(output_pin)
+        if not net:
             return
-        try:
-            net = self.net_resolver.get_connected_pins("esp32", f"GPIO{output_pin}")
-        except Exception:
-            return
+
+        board_comps = {"esp32", "arduino_uno"}
+        if self.board_profile:
+            board_comps.add(self.board_profile.component_type)
+
         for comp_id, pin_name in net:
-            if comp_id != "esp32" or not pin_name.startswith("GPIO"):
+            if comp_id not in board_comps:
                 continue
-            try:
-                other_pin = int(pin_name[4:])
-            except ValueError:
-                continue
-            if other_pin == output_pin:
+            other_pin = self._parse_pin_number(pin_name)
+            if other_pin is None or other_pin == output_pin:
                 continue
             if self._modes.get(other_pin) == GPIOMode.IN:
                 resolved = self.read(other_pin)
@@ -108,36 +174,35 @@ class GPIOManager:
         pull_high = (pull == GPIOPull.PULL_UP)
         pull_low = (pull == GPIOPull.PULL_DOWN)
 
-        if hasattr(self, 'net_resolver') and self.net_resolver:
-            try:
-                net = self.net_resolver.get_connected_pins("esp32", f"GPIO{pin}")
-                if net:
-                    for comp_id, p_id in net:
-                        if comp_id == "esp32":
-                            if p_id in ("3V3", "VIN", "VCC", "5V"):
-                                vcc = True
-                            elif "GND" in p_id:
-                                gnd = True
-                            elif p_id.startswith("GPIO"):
-                                other_pin = int(p_id[4:])
-                                # Only count outputs
-                                if self._modes.get(other_pin) == GPIOMode.OUT:
-                                    val = self._values.get(other_pin, 0)
-                                    if val == 1:
-                                        high_outputs += 1
-                                    else:
-                                        low_outputs += 1
-                        elif hasattr(self, "device_models") and comp_id in self.device_models:
-                            # Also check if external devices drive the net
-                            dev = self.device_models[comp_id]
-                            if hasattr(dev, "get_digital_state"):
-                                d_state = dev.get_digital_state(p_id)
-                                if d_state and d_state.status == 'HIGH':
-                                    high_outputs += 1
-                                elif d_state and d_state.status == 'LOW':
-                                    low_outputs += 1
-            except Exception:
-                pass
+        net = self._get_pin_net(pin)
+        if net:
+            board_comps = {"esp32", "arduino_uno"}
+            if self.board_profile:
+                board_comps.add(self.board_profile.component_type)
+
+            for comp_id, p_id in net:
+                if comp_id in board_comps:
+                    if p_id in ("3V3", "VIN", "VCC", "5V", "IOREF"):
+                        vcc = True
+                    elif "GND" in p_id:
+                        gnd = True
+                    else:
+                        other_pin = self._parse_pin_number(p_id)
+                        if other_pin is not None and self._modes.get(other_pin) == GPIOMode.OUT:
+                            val = self._values.get(other_pin, 0)
+                            if val == 1:
+                                high_outputs += 1
+                            else:
+                                low_outputs += 1
+                elif hasattr(self, "device_models") and comp_id in self.device_models:
+                    # Also check if external devices drive the net
+                    dev = self.device_models[comp_id]
+                    if hasattr(dev, "get_digital_state"):
+                        d_state = dev.get_digital_state(p_id)
+                        if d_state and d_state.status == 'HIGH':
+                            high_outputs += 1
+                        elif d_state and d_state.status == 'LOW':
+                            low_outputs += 1
                 
         is_high = vcc or high_outputs > 0
         is_low = gnd or low_outputs > 0
@@ -171,7 +236,8 @@ class GPIOManager:
         return self.read(pin)
 
     def set_adc_value(self, pin: int, value: int) -> None:
-        val = max(0, min(4095, int(value)))
+        max_adc = getattr(self.board_profile, "adc_resolution", 4095) if self.board_profile else 4095
+        val = max(0, min(max_adc, int(value)))
         self._adc_values[pin] = val
         for cb in self._adc_listeners:
             try:
