@@ -163,7 +163,7 @@ Pour la notice détaillée de distribution et les instructions de déploiement e
 ## 👤 Auteur & Contact
 
 **Fares Bel Haj Ali**  
-*Ingénieur / Concepteur & Développeur Logiciel*
+*Concepteur & Développeur Logiciel*
 
 - 📧 **Email** : [belhadj.fares@gmail.com](mailto:belhadj.fares@gmail.com)
 - 📞 **Téléphone** : +216 22 392 646
